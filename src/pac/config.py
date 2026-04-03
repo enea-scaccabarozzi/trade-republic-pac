@@ -59,10 +59,16 @@ class Settings(BaseSettings):
         description="Day of month for PAC calculation",
     )
 
-    # Scheduling
-    check_interval_minutes: int = Field(
-        default=60,
-        description="Interval in minutes between portfolio checks",
+    # Webhook / serverless
+    webhook_url: str = Field(
+        default="",
+        description="Public URL for Telegram webhook (e.g. https://my-service.run.app/webhook)",
+    )
+    webhook_secret: str = Field(
+        description="Secret for X-Telegram-Bot-Api-Secret-Token header",
+    )
+    job_secret: str = Field(
+        description="Secret token for X-Job-Secret header on Cloud Scheduler requests",
     )
 
     @model_validator(mode="after")

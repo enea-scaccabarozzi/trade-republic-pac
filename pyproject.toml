@@ -9,12 +9,19 @@ dependencies = [
     "pydantic-settings>=2.0",
     "pytr[waf]>=0.4",
     "python-telegram-bot>=20.0",
-    "apscheduler>=3.10",
+    "starlette>=0.37",
+    "uvicorn[standard]>=0.29",
     "structlog>=23.0",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "mypy>=1.8", "ruff>=0.3"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "mypy>=1.8",
+    "ruff>=0.3",
+    "httpx>=0.27",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -53,4 +60,12 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["curl_cffi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["starlette.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["uvicorn.*"]
 ignore_missing_imports = true

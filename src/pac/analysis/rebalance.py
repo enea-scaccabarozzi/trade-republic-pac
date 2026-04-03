@@ -51,8 +51,7 @@ def _quantize_and_build(
 ) -> dict[AssetClass, PacAllocation]:
     """Quantize amounts to cents and absorb remainder into the largest."""
     quantized = {
-        ac: amt.quantize(_CENTS, rounding=ROUND_HALF_UP)
-        for ac, amt in raw.items()
+        ac: amt.quantize(_CENTS, rounding=ROUND_HALF_UP) for ac, amt in raw.items()
     }
 
     remainder = total_budget - sum(quantized.values())

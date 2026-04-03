@@ -79,4 +79,3 @@ class SavingsPlan(BaseModel):
     amount: Decimal
     interval: str
     asset_class: AssetClass | None = None
-
