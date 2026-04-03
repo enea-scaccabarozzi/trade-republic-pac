@@ -1,0 +1,16 @@
+.git
+.github
+.tasks
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+tests/
+*.md
+!README.md
+Justfile
+.venv
