@@ -26,7 +26,7 @@ from pac.telegram.keyboards import (
     CALLBACK_REDISTRIBUTE_RECALC,
     pac_plan_keyboard,
 )
-from pac.tr.client import TRClient
+from pac.tr.client import tr_session
 from pac.tr.exceptions import (
     TRClientError,
     TRConnectionError,
@@ -87,9 +87,9 @@ async def _handle_status(
     if not _authorized(update, settings):
         return
 
-    tr: TRClient = context.bot_data["tr_client"]
     try:
-        snapshot = await tr.get_portfolio()
+        async with tr_session(settings) as tr:
+            snapshot = await tr.get_portfolio()
     except TRSessionExpiredError:
         logger.exception("status_session_expired")
         await update.message.reply_text(  # type: ignore[union-attr]
@@ -129,10 +129,10 @@ async def _handle_rebalance(
     if not _authorized(update, settings):
         return
 
-    tr: TRClient = context.bot_data["tr_client"]
     registry: SignalRegistry = context.bot_data["signal_registry"]
     try:
-        snapshot = await tr.get_portfolio()
+        async with tr_session(settings) as tr:
+            snapshot = await tr.get_portfolio()
     except TRSessionExpiredError:
         logger.exception("rebalance_session_expired")
         await update.message.reply_text(  # type: ignore[union-attr]
@@ -173,9 +173,9 @@ async def _handle_redistribute(
     if not _authorized(update, settings):
         return
 
-    tr: TRClient = context.bot_data["tr_client"]
     try:
-        snapshot = await tr.get_portfolio()
+        async with tr_session(settings) as tr:
+            snapshot = await tr.get_portfolio()
     except TRSessionExpiredError:
         logger.exception("redistribute_session_expired")
         await update.message.reply_text(  # type: ignore[union-attr]
@@ -221,9 +221,9 @@ async def _handle_redistribute_callback(
     if not _authorized(update, settings):
         return
 
-    tr: TRClient = context.bot_data["tr_client"]
     try:
-        snapshot = await tr.get_portfolio()
+        async with tr_session(settings) as tr:
+            snapshot = await tr.get_portfolio()
     except TRSessionExpiredError:
         logger.exception("redistribute_callback_session_expired")
         await query.edit_message_text(
@@ -257,14 +257,12 @@ async def _handle_redistribute_callback(
 
 def create_bot(
     settings: Settings,
-    tr_client: TRClient,
     registry: SignalRegistry | None = None,
 ) -> Application:  # type: ignore[type-arg]
     """Build and configure the Telegram bot Application.
 
     Args:
         settings: Application settings with bot token and chat ID.
-        tr_client: Connected TRClient instance.
         registry: Signal registry. Defaults to create_default_registry().
 
     Returns:
@@ -276,7 +274,6 @@ def create_bot(
     app = Application.builder().token(settings.telegram_bot_token).build()
 
     app.bot_data["settings"] = settings
-    app.bot_data["tr_client"] = tr_client
     app.bot_data["signal_registry"] = registry
 
     app.add_handler(CommandHandler("start", _handle_start))
