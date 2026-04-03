@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
@@ -54,9 +56,7 @@ class TRClient:
                 cookies_file=self._settings.tr_cookies_path,
             )
         except Exception as exc:
-            raise TRConnectionError(
-                f"Failed to create TR API client: {exc}"
-            ) from exc
+            raise TRConnectionError(f"Failed to create TR API client: {exc}") from exc
 
         resumed = await self._api.resume_websession()
         if not resumed:
@@ -105,9 +105,7 @@ class TRClient:
             if "TradeRepublicError" in type(exc).__name__:
                 raise TRClientError(f"TR API error: {exc}") from exc
             if "ConnectionClosed" in type(exc).__name__:
-                raise TRConnectionError(
-                    f"TR connection closed: {exc}"
-                ) from exc
+                raise TRConnectionError(f"TR connection closed: {exc}") from exc
             raise TRClientError(f"Unexpected error: {exc}") from exc
 
     async def get_portfolio(self) -> PortfolioSnapshot:
@@ -272,3 +270,14 @@ class TRClient:
             except Exception:
                 logger.warning("savings_plan_parse_error", raw_plan=raw_plan)
         return plans
+
+
+@asynccontextmanager
+async def tr_session(settings: Settings) -> AsyncIterator[TRClient]:
+    """Connect a TRClient for the duration of a request, then close it."""
+    client = TRClient(settings)
+    await client.connect()
+    try:
+        yield client
+    finally:
+        await client.close()
