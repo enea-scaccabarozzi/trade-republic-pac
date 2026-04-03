@@ -69,3 +69,14 @@ class PortfolioSnapshot(BaseModel):
                 asset_class=ac, actual_pct=actual_pct, target_pct=Decimal(0)
             )
         return result
+
+
+class SavingsPlan(BaseModel):
+    """A configured savings plan (PAC)."""
+
+    isin: str
+    name: str
+    amount: Decimal
+    interval: str
+    asset_class: AssetClass | None = None
+
