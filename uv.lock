@@ -891,7 +891,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "python-telegram-bot", specifier = ">=20.0" },
-    { name = "pytr", specifier = ">=0.4" },
+    { name = "pytr", extras = ["waf"], specifier = ">=0.4" },
     { name = "structlog", specifier = ">=23.0" },
 ]
 
