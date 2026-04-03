@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+from pac.config import Settings
 from pac.models.portfolio import AssetClass, PortfolioSnapshot, Position
 
 
@@ -44,4 +45,14 @@ def sample_snapshot(sample_positions: list[Position]) -> PortfolioSnapshot:
         positions=sample_positions,
         cash=Decimal("200.00"),
         timestamp=datetime(2026, 4, 1, tzinfo=UTC),
+    )
+
+
+@pytest.fixture
+def default_settings() -> Settings:
+    return Settings(
+        tr_phone_number="+491234567890",
+        tr_pin="1234",
+        telegram_bot_token="fake-token",
+        telegram_chat_id="12345",
     )
