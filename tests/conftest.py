@@ -55,4 +55,6 @@ def default_settings() -> Settings:
         tr_pin="1234",
         telegram_bot_token="fake-token",
         telegram_chat_id="12345",
+        webhook_secret="test-secret",
+        job_secret="test-job-secret",
     )

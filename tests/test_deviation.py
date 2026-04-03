@@ -33,6 +33,8 @@ class TestGetTargetAllocations:
             tr_pin="1234",
             telegram_bot_token="fake-token",
             telegram_chat_id="12345",
+            webhook_secret="test-secret",
+            job_secret="test-job-secret",
             target_stocks_pct=50,
             target_gold_pct=30,
             target_bonds_pct=20,

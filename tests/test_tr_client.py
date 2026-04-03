@@ -19,6 +19,8 @@ def settings() -> Settings:
         tr_cookies_path="/tmp/test_cookies",
         telegram_bot_token="test_token",
         telegram_chat_id="test_chat_id",
+        webhook_secret="test-secret",
+        job_secret="test-job-secret",
     )
 
 
@@ -59,9 +61,7 @@ class TestConnect:
     async def test_connect_raises_on_construction_failure(
         self, settings: Settings
     ) -> None:
-        with patch(
-            "pytr.api.TradeRepublicApi", side_effect=RuntimeError("WAF failed")
-        ):
+        with patch("pytr.api.TradeRepublicApi", side_effect=RuntimeError("WAF failed")):
             tr_client = TRClient(settings)
             with pytest.raises(TRConnectionError, match="Failed to create"):
                 await tr_client.connect()
@@ -77,11 +77,17 @@ class TestGetPortfolio:
         mock_api.ticker = AsyncMock(side_effect=[6, 7, 8])
         mock_api.recv = AsyncMock(
             side_effect=[
-                (1, {}, {"positions": [
-                    {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
-                    {"instrumentId": "IE00B4ND3602", "netSize": 5.0},
-                    {"instrumentId": "IE00B3F81409", "netSize": 5.0},
-                ]}),
+                (
+                    1,
+                    {},
+                    {
+                        "positions": [
+                            {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
+                            {"instrumentId": "IE00B4ND3602", "netSize": 5.0},
+                            {"instrumentId": "IE00B3F81409", "netSize": 5.0},
+                        ]
+                    },
+                ),
                 (2, {}, [{"amount": 200.0, "currencyId": "EUR"}]),
                 (3, {}, {"shortName": "FTSE All-World", "exchangeIds": ["LSX"]}),
                 (4, {}, {"shortName": "Physical Gold", "exchangeIds": ["LSX"]}),
@@ -114,11 +120,17 @@ class TestGetPortfolio:
         mock_api.ticker = AsyncMock(side_effect=[6, 7, 8])
         mock_api.recv = AsyncMock(
             side_effect=[
-                (1, {}, {"positions": [
-                    {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
-                    {"instrumentId": "IE00B4ND3602", "netSize": 5.0},
-                    {"instrumentId": "IE00B3F81409", "netSize": 5.0},
-                ]}),
+                (
+                    1,
+                    {},
+                    {
+                        "positions": [
+                            {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
+                            {"instrumentId": "IE00B4ND3602", "netSize": 5.0},
+                            {"instrumentId": "IE00B3F81409", "netSize": 5.0},
+                        ]
+                    },
+                ),
                 (2, {}, [{"amount": 0.0, "currencyId": "EUR"}]),
                 (3, {}, {"shortName": "Stocks", "exchangeIds": ["LSX"]}),
                 (4, {}, {"shortName": "Gold", "exchangeIds": ["LSX"]}),
@@ -145,9 +157,15 @@ class TestGetPortfolio:
         mock_api.ticker = AsyncMock(side_effect=[4])
         mock_api.recv = AsyncMock(
             side_effect=[
-                (1, {}, {"positions": [
-                    {"instrumentId": "UNKNOWN_ISIN", "netSize": 1.0},
-                ]}),
+                (
+                    1,
+                    {},
+                    {
+                        "positions": [
+                            {"instrumentId": "UNKNOWN_ISIN", "netSize": 1.0},
+                        ]
+                    },
+                ),
                 (2, {}, [{"amount": 100.0, "currencyId": "EUR"}]),
                 (3, {}, {"shortName": "Unknown ETF", "exchangeIds": ["LSX"]}),
                 (4, {}, {"last": {"price": 50.0}}),
@@ -185,9 +203,15 @@ class TestGetPortfolio:
         mock_api.ticker = AsyncMock(side_effect=[4])
         mock_api.recv = AsyncMock(
             side_effect=[
-                (1, {}, {"positions": [
-                    {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
-                ]}),
+                (
+                    1,
+                    {},
+                    {
+                        "positions": [
+                            {"instrumentId": "IE00BK5BQT80", "netSize": 10.0},
+                        ]
+                    },
+                ),
                 (2, {}, [{"amount": 200.0, "currencyId": "EUR"}]),
                 (3, {}, {"shortName": "FTSE All-World", "exchangeIds": ["LSX"]}),
                 TimeoutError(),
@@ -201,9 +225,7 @@ class TestGetPortfolio:
 
 
 class TestGetCashBalance:
-    async def test_returns_decimal(
-        self, client: TRClient, mock_api: AsyncMock
-    ) -> None:
+    async def test_returns_decimal(self, client: TRClient, mock_api: AsyncMock) -> None:
         mock_api.cash = AsyncMock(return_value=1)
         mock_api.recv = AsyncMock(
             return_value=(1, {}, [{"amount": 1234.56, "currencyId": "EUR"}])
@@ -225,25 +247,27 @@ class TestGetCashBalance:
 
 
 class TestGetSavingsPlans:
-    async def test_returns_list(
-        self, client: TRClient, mock_api: AsyncMock
-    ) -> None:
+    async def test_returns_list(self, client: TRClient, mock_api: AsyncMock) -> None:
         mock_api.savings_plan_overview = AsyncMock(return_value=1)
         mock_api.recv = AsyncMock(
-            return_value=(1, {}, [
-                {
-                    "instrumentId": "IE00BK5BQT80",
-                    "name": "FTSE All-World",
-                    "amount": 350.0,
-                    "interval": "monthly",
-                },
-                {
-                    "instrumentId": "IE00B4ND3602",
-                    "name": "Physical Gold",
-                    "amount": 75.0,
-                    "interval": "monthly",
-                },
-            ])
+            return_value=(
+                1,
+                {},
+                [
+                    {
+                        "instrumentId": "IE00BK5BQT80",
+                        "name": "FTSE All-World",
+                        "amount": 350.0,
+                        "interval": "monthly",
+                    },
+                    {
+                        "instrumentId": "IE00B4ND3602",
+                        "name": "Physical Gold",
+                        "amount": 75.0,
+                        "interval": "monthly",
+                    },
+                ],
+            )
         )
 
         plans = await client.get_savings_plans()
@@ -256,9 +280,7 @@ class TestGetSavingsPlans:
         assert plans[0].asset_class == AssetClass.STOCKS
         assert plans[1].asset_class == AssetClass.GOLD
 
-    async def test_empty_plans(
-        self, client: TRClient, mock_api: AsyncMock
-    ) -> None:
+    async def test_empty_plans(self, client: TRClient, mock_api: AsyncMock) -> None:
         mock_api.savings_plan_overview = AsyncMock(return_value=1)
         mock_api.recv = AsyncMock(return_value=(1, {}, []))
 
@@ -271,10 +293,14 @@ class TestGetSavingsPlans:
     ) -> None:
         mock_api.savings_plan_overview = AsyncMock(return_value=1)
         mock_api.recv = AsyncMock(
-            return_value=(1, {}, [
-                {"instrumentId": "IE00BK5BQT80", "amount": 100.0},
-                "not_a_dict",  # malformed entry
-            ])
+            return_value=(
+                1,
+                {},
+                [
+                    {"instrumentId": "IE00BK5BQT80", "amount": 100.0},
+                    "not_a_dict",  # malformed entry
+                ],
+            )
         )
 
         plans = await client.get_savings_plans()

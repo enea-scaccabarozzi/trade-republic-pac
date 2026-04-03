@@ -178,9 +178,7 @@ class TestThresholdDeviationRule:
         rule = ThresholdDeviationRule()
         signals = rule.evaluate(report, snapshot, default_settings)
 
-        bonds_signals = [
-            s for s in signals if s.metadata.get("asset_class") == "bonds"
-        ]
+        bonds_signals = [s for s in signals if s.metadata.get("asset_class") == "bonds"]
         assert len(bonds_signals) == 1
         assert bonds_signals[0].severity == SignalSeverity.CRITICAL
         assert bonds_signals[0].metadata["direction"] == "underweight"
@@ -286,6 +284,8 @@ class TestCycleInversionRule:
             tr_pin="1234",
             telegram_bot_token="fake-token",
             telegram_chat_id="12345",
+            webhook_secret="test-secret",
+            job_secret="test-job-secret",
             cycle_inversion_min_pct=Decimal("5.0"),
         )
         snapshot = _make_snapshot(

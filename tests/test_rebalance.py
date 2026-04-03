@@ -93,7 +93,9 @@ class TestCalculatePacPlan:
         default_settings: Settings,
     ) -> None:
         plan = calculate_pac_plan(
-            sample_snapshot, default_settings, available_budget=Decimal("300"),
+            sample_snapshot,
+            default_settings,
+            available_budget=Decimal("300"),
         )
 
         assert plan.total_budget == Decimal("300")
@@ -106,7 +108,9 @@ class TestCalculatePacPlan:
         default_settings: Settings,
     ) -> None:
         plan = calculate_pac_plan(
-            sample_snapshot, default_settings, available_budget=Decimal("0"),
+            sample_snapshot,
+            default_settings,
+            available_budget=Decimal("0"),
         )
 
         for alloc in plan.allocations.values():
