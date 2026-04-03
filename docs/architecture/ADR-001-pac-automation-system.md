@@ -4,13 +4,13 @@
 
 ## Decision
 
-Build a serverless portfolio rebalancing assistant for Trade Republic using a Starlette ASGI app on Cloud Run, with Protocol-based signal rules and Telegram webhook notifications.
+Build a containerized portfolio rebalancing assistant for Trade Republic using a Starlette ASGI app, with Protocol-based signal rules and Telegram webhook notifications.
 
 ## Why
 
 - Automate detection of portfolio drift from a 70/15/15 target allocation (Stocks/Gold/Bonds)
 - Never execute trades — all recommendations are advisory, acted on manually
-- Scale to zero on Cloud Run for near-zero cost (~$0/month vs ~$17/month always-on)
+- Lightweight container — runs on any Docker-compatible host (VPS, NAS, orchestrator)
 - Extensible signal system so new rebalance rules can be added without modifying existing code
 
 ## Solution
@@ -18,12 +18,12 @@ Build a serverless portfolio rebalancing assistant for Trade Republic using a St
 ### Data Flow
 
 ```
-Cloud Scheduler (cron)
+Scheduler (cron)
        │
        ▼ POST /jobs/hourly-check  or  /jobs/monthly-pac
 ┌──────────────────┐
 │  Starlette ASGI  │──▶ tr_session() context manager ──▶ TR WebSocket API (pytr)
-│  (Cloud Run)     │           │
+│  (Docker)        │           │
 │                  │    PortfolioSnapshot
 │                  │           │
 │                  │    calculate_deviations() → DeviationReport
@@ -40,23 +40,23 @@ Telegram webhook (POST /webhook) ──▶ command handlers (/status, /portfolio
 
 ### Key Design Choices
 
-**Serverless over long-running process:** Cloud Scheduler sends HTTP POST requests on cron schedules. No APScheduler, no persistent process. TR WebSocket connections are opened per-request via `tr_session()` async context manager and closed after each job completes.
+**On-demand job execution:** An external scheduler (cron, systemd timer, or orchestrator) sends HTTP POST requests to trigger jobs. TR WebSocket connections are opened per-request via `tr_session()` async context manager and closed after each job completes.
 
 **Protocol-based signal rules:** `SignalRule` is a `typing.Protocol` (structural subtyping, not ABC). Rules are stateless — configuration comes from `Settings`. New rules plug in by implementing the protocol and registering in `SignalRegistry`.
 
-**Webhook-based Telegram:** Instead of long-polling, Telegram delivers updates as HTTP POST to `/webhook`. Secret token validation via `X-Telegram-Bot-Api-Secret-Token` header. Cloud Scheduler jobs authenticated via `X-Job-Secret` header.
+**Webhook-based Telegram:** Instead of long-polling, Telegram delivers updates as HTTP POST to `/webhook`. Secret token validation via `X-Telegram-Bot-Api-Secret-Token` header. Scheduled jobs authenticated via `X-Job-Secret` header.
 
 ## Implementation Phases
 
-| Phase           | What Changed                                                          |
-| --------------- | --------------------------------------------------------------------- |
-| 1. Scaffolding  | Project structure, Pydantic models (Position, Signal, etc.), config   |
-| 2. TR Client    | Read-only `pytr` wrapper with typed async methods, cookie auth        |
-| 3. Analysis     | Deviation calculation, PAC volume redistribution from bank balance    |
-| 4. Signals      | Protocol-based rule system, threshold + cycle inversion rules         |
-| 5. Telegram     | Bot command handlers, Markdown formatting, inline keyboards           |
-| 6. Scheduler    | Starlette ASSI app, webhook endpoints, Cloud Scheduler job endpoints  |
-| 7. Deployment   | Dockerfile (multi-stage uv build), GitHub Actions CI/CD, Cloud Run   |
+| Phase          | What Changed                                                        |
+| -------------- | ------------------------------------------------------------------- |
+| 1. Scaffolding | Project structure, Pydantic models (Position, Signal, etc.), config |
+| 2. TR Client   | Read-only `pytr` wrapper with typed async methods, cookie auth      |
+| 3. Analysis    | Deviation calculation, PAC volume redistribution from bank balance  |
+| 4. Signals     | Protocol-based rule system, threshold + cycle inversion rules       |
+| 5. Telegram    | Bot command handlers, Markdown formatting, inline keyboards         |
+| 6. Scheduler   | Starlette ASGI app, webhook endpoints, scheduled job endpoints      |
+| 7. Deployment  | Dockerfile (multi-stage uv build), GitHub Actions CI/CD             |
 
 ## Key Architectural Patterns
 

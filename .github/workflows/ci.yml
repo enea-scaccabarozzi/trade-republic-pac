@@ -2,8 +2,6 @@ name: CI
 
 on:
     pull_request:
-    push:
-        branches: [main]
     workflow_call:
 
 concurrency:
@@ -18,9 +16,10 @@ jobs:
             - uses: astral-sh/setup-uv@v5
               with:
                   enable-cache: true
+            - uses: taiki-e/install-action@just
             - run: uv sync --frozen --dev
-            - run: uv run ruff check src tests
-            - run: uv run ruff format --check src tests
+            - run: just lint
+            - run: just format-check
 
     typecheck:
         runs-on: ubuntu-latest
@@ -29,8 +28,9 @@ jobs:
             - uses: astral-sh/setup-uv@v5
               with:
                   enable-cache: true
+            - uses: taiki-e/install-action@just
             - run: uv sync --frozen --dev
-            - run: uv run mypy src
+            - run: just typecheck
 
     test:
         runs-on: ubuntu-latest
@@ -39,5 +39,6 @@ jobs:
             - uses: astral-sh/setup-uv@v5
               with:
                   enable-cache: true
+            - uses: taiki-e/install-action@just
             - run: uv sync --frozen --dev
-            - run: uv run pytest --tb=short -q
+            - run: just test --tb=short -q

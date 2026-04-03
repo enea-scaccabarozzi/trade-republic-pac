@@ -84,9 +84,7 @@ async def hourly_check(request: Request) -> JSONResponse:
         report = calculate_deviations(snapshot, settings)
         signals = registry.evaluate_all(report, snapshot, settings)
         if signals:
-            await send_signal_alert(
-                ptb_app.bot, settings.telegram_chat_id, signals
-            )
+            await send_signal_alert(ptb_app.bot, settings.telegram_chat_id, signals)
         logger.info("hourly_check_done", signal_count=len(signals))
         return JSONResponse({"ok": True, "signals": len(signals)})
     except Exception:

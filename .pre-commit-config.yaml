@@ -1,0 +1,51 @@
+repos:
+  # Community standard file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  # Commitizen — validate conventional commit messages
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.4.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # Local hooks — delegate to just targets
+  - repo: local
+    hooks:
+      - id: format
+        name: format
+        entry: just format
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: lint
+        name: lint
+        entry: just lint
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: typecheck
+        name: typecheck
+        entry: just typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: validate
+        name: validate
+        entry: just validate
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

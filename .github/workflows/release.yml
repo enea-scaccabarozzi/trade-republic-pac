@@ -1,0 +1,84 @@
+name: Release
+
+on:
+    push:
+        branches: [main]
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+permissions:
+    contents: write
+    packages: write
+    id-token: write
+
+jobs:
+    # ── Gate: run full CI first ──────────────────────────────────────────
+    ci:
+        uses: ./.github/workflows/ci.yml
+
+    # ── Semantic Release ─────────────────────────────────────────────────
+    release:
+        needs: ci
+        runs-on: ubuntu-latest
+        outputs:
+            released: ${{ steps.semrel.outputs.released }}
+            version: ${{ steps.semrel.outputs.version }}
+            tag: ${{ steps.semrel.outputs.tag }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+
+            - name: Run semantic-release
+              id: semrel
+              uses: python-semantic-release/python-semantic-release@v9
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  git_committer_name: "github-actions[bot]"
+                  git_committer_email: "github-actions[bot]@users.noreply.github.com"
+
+    # ── Docker build & push ─────────────────────────────────────────────
+    docker:
+        needs: release
+        if: needs.release.outputs.released == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.release.outputs.tag }}
+
+            - uses: docker/setup-qemu-action@v3
+
+            - uses: docker/setup-buildx-action@v3
+
+            - uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - uses: docker/metadata-action@v5
+              id: meta
+              with:
+                  images: ghcr.io/${{ github.repository }}
+                  tags: |
+                      type=semver,pattern={{version}},value=${{ needs.release.outputs.version }}
+                      type=semver,pattern={{major}}.{{minor}},value=${{ needs.release.outputs.version }}
+                      type=raw,value=latest
+
+            - uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  push: true
+                  platforms: linux/amd64,linux/arm64
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max

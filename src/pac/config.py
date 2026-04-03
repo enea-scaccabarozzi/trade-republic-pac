@@ -59,16 +59,16 @@ class Settings(BaseSettings):
         description="Day of month for PAC calculation",
     )
 
-    # Webhook / serverless
+    # Webhook / scheduling
     webhook_url: str = Field(
         default="",
-        description="Public URL for Telegram webhook (e.g. https://my-service.run.app/webhook)",
+        description="Public URL for Telegram webhook (e.g. https://example.com/webhook)",
     )
     webhook_secret: str = Field(
         description="Secret for X-Telegram-Bot-Api-Secret-Token header",
     )
     job_secret: str = Field(
-        description="Secret token for X-Job-Secret header on Cloud Scheduler requests",
+        description="Secret token for X-Job-Secret header on scheduled requests",
     )
 
     @model_validator(mode="after")
