@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+    push:
+        branches: [main]
+
+concurrency:
+    group: deploy
+    cancel-in-progress: false
+
+permissions:
+    contents: read
+    id-token: write
+
+jobs:
+    ci:
+        uses: ./.github/workflows/ci.yml
+
+    deploy:
+        needs: ci
+        runs-on: ubuntu-latest
+        environment: production
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - id: auth
+              uses: google-github-actions/auth@v2
+              with:
+                  workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+                  service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+            - uses: google-github-actions/setup-gcloud@v2
+
+            - name: Configure Docker for Artifact Registry
+              run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+            - name: Build and push image
+              env:
+                  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/pac/trade-republic-pac:${{ github.sha }}
+              run: |
+                  docker build -t "$IMAGE" .
+                  docker push "$IMAGE"
+
+            - name: Deploy to Cloud Run
+              env:
+                  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/pac/trade-republic-pac:${{ github.sha }}
+              run: |
+                  gcloud run deploy trade-republic-pac \
+                    --image "$IMAGE" \
+                    --region "${{ vars.GCP_REGION }}" \
+                    --project "${{ vars.GCP_PROJECT_ID }}" \
+                    --platform managed \
+                    --min-instances 0 \
+                    --max-instances 1 \
+                    --memory 256Mi \
+                    --cpu 1 \
+                    --cpu-throttling \
+                    --port 8080 \
+                    --no-allow-unauthenticated \
+                    --timeout=120 \
+                    --set-secrets "PAC_TR_PHONE_NUMBER=tr-phone-number:latest,PAC_TR_PIN=tr-pin:latest,PAC_TELEGRAM_BOT_TOKEN=telegram-bot-token:latest,PAC_TELEGRAM_CHAT_ID=telegram-chat-id:latest,PAC_WEBHOOK_SECRET=webhook-secret:latest,PAC_JOB_SECRET=job-secret:latest,PAC_WEBHOOK_URL=webhook-url:latest" \
+                    --set-env-vars "PAC_TARGET_STOCKS_PCT=70,PAC_TARGET_GOLD_PCT=15,PAC_TARGET_BONDS_PCT=15,PAC_PAC_MONTHLY_BUDGET=500,PAC_ISIN_STOCKS=IE00BK5BQT80,PAC_ISIN_GOLD=IE00B4ND3602,PAC_ISIN_BONDS=IE00B3F81409,PAC_PAC_DAY_OF_MONTH=14" \
+                    --service-account "${{ secrets.GCP_SA_EMAIL }}" \
+                    --quiet
