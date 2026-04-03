@@ -42,6 +42,10 @@ class Settings(BaseSettings):
         default=Decimal("5.0"),
         description="Deviation % to trigger a critical signal",
     )
+    cycle_inversion_min_pct: Decimal = Field(
+        default=Decimal("2.0"),
+        description="Min deviation % per side to flag a cycle inversion",
+    )
 
     # PAC
     pac_monthly_budget: Decimal = Field(
