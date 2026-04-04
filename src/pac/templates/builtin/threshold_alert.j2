@@ -1,0 +1,13 @@
+{# Expected data: signal (Signal), deviations (list[DeviationResult], optional) #}
+{{ emoji(signal.severity.value) }} {{ bold("Signal: " ~ escape(signal.name)) }}
+Severity{{ literal(":") }} {{ code(signal.severity.value | upper) }}
+
+{{ escape(signal.message) }}
+
+{% if deviations %}
+{% for dev in deviations %}
+{{ emoji(dev.severity.value) }} {{ bold(escape(dev.name)) }}{{ literal(":") }} {{ escape(dev.actual_pct | pctfmt) }} {{ literal("/") }} {{ escape(dev.target_pct | pctfmt) }} {{ literal("(") }}{{ literal("+") if dev.deviation_pct > 0 else "" }}{{ escape(dev.deviation_pct | pctfmt) }}{{ literal(")") }}
+{% endfor %}
+{% endif %}
+
+{{ italic(escape(signal.triggered_at | datefmt)) }}

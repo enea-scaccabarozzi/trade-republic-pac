@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from pac.models.portfolio import (
-    AssetClass,
     PortfolioSnapshot,
     Position,
     SavingsPlan,
@@ -33,11 +32,7 @@ class TRClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._api: Any = None
-        self._isin_to_asset_class: dict[str, AssetClass] = {
-            settings.isin_stocks: AssetClass.STOCKS,
-            settings.isin_gold: AssetClass.GOLD,
-            settings.isin_bonds: AssetClass.BONDS,
-        }
+        self._isin_to_asset_id: dict[str, str] = settings.isin_to_asset_id
 
     async def connect(self) -> None:
         """Connect to Trade Republic and resume session from cookies.
@@ -50,10 +45,10 @@ class TRClient:
 
         try:
             self._api = TradeRepublicApi(
-                phone_no=self._settings.tr_phone_number,
-                pin=self._settings.tr_pin,
+                phone_no=self._settings.broker.phone_number,
+                pin=self._settings.broker.pin,
                 save_cookies=True,
-                cookies_file=self._settings.tr_cookies_path,
+                cookies_file=self._settings.broker.cookies_path,
             )
         except Exception as exc:
             raise TRConnectionError(f"Failed to create TR API client: {exc}") from exc
@@ -148,6 +143,8 @@ class TRClient:
                 pending.discard(sub_id)
                 await self._api.unsubscribe(sub_id)
 
+        # pytr returns cash as a list of currency entries (one per currency);
+        # index [0] is the primary EUR balance.
         cash = Decimal(str(cash_response[0]["amount"]))
 
         if not raw_positions:
@@ -212,7 +209,7 @@ class TRClient:
         positions: list[Position] = []
         for pos in raw_positions:
             isin = pos["instrumentId"]
-            if isin not in self._isin_to_asset_class:
+            if isin not in self._isin_to_asset_id:
                 logger.warning("unknown_isin_skipped", isin=isin)
                 continue
             if isin not in prices:
@@ -229,7 +226,7 @@ class TRClient:
                     quantity=quantity,
                     price=price,
                     market_value=quantity * price,
-                    asset_class=self._isin_to_asset_class[isin],
+                    asset_id=self._isin_to_asset_id[isin],
                 )
             )
 
@@ -264,7 +261,7 @@ class TRClient:
                         name=raw_plan.get("name", isin),
                         amount=Decimal(str(raw_plan.get("amount", 0))),
                         interval=raw_plan.get("interval", "unknown"),
-                        asset_class=self._isin_to_asset_class.get(isin),
+                        asset_id=self._isin_to_asset_id.get(isin),
                     )
                 )
             except Exception:

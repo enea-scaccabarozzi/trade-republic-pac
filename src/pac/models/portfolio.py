@@ -2,17 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from enum import StrEnum
 
 from pydantic import BaseModel, computed_field
-
-
-class AssetClass(StrEnum):
-    """Supported asset classes for portfolio allocation."""
-
-    STOCKS = "stocks"
-    GOLD = "gold"
-    BONDS = "bonds"
 
 
 class Position(BaseModel):
@@ -23,19 +14,19 @@ class Position(BaseModel):
     quantity: Decimal
     price: Decimal
     market_value: Decimal
-    asset_class: AssetClass
+    asset_id: str
 
 
 class Allocation(BaseModel):
-    """Allocation breakdown for a single asset class."""
+    """Allocation breakdown for a single asset."""
 
-    asset_class: AssetClass
+    asset_id: str
     actual_pct: Decimal
     target_pct: Decimal
 
 
 class PortfolioSnapshot(BaseModel):
-    """Point-in-time portfolio state with computed allocations."""
+    """Point-in-time portfolio state."""
 
     positions: list[Position]
     cash: Decimal
@@ -47,26 +38,31 @@ class PortfolioSnapshot(BaseModel):
         """Total portfolio value including cash."""
         return sum((p.market_value for p in self.positions), Decimal(0)) + self.cash
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def allocations(self) -> dict[AssetClass, Allocation]:
-        """Current allocation percentages per asset class."""
+    def allocations(self, asset_ids: list[str]) -> dict[str, Allocation]:
+        """Compute allocation percentages for the given asset IDs.
+
+        Args:
+            asset_ids: Dynamic list of asset IDs from config.
+
+        Returns:
+            Mapping of asset ID to its Allocation breakdown.
+        """
         if self.total_value == 0:
             return {
-                ac: Allocation(
-                    asset_class=ac, actual_pct=Decimal(0), target_pct=Decimal(0)
+                aid: Allocation(
+                    asset_id=aid, actual_pct=Decimal(0), target_pct=Decimal(0)
                 )
-                for ac in AssetClass
+                for aid in asset_ids
             }
-        result: dict[AssetClass, Allocation] = {}
-        for ac in AssetClass:
+        result: dict[str, Allocation] = {}
+        for aid in asset_ids:
             class_value = sum(
-                (p.market_value for p in self.positions if p.asset_class == ac),
+                (p.market_value for p in self.positions if p.asset_id == aid),
                 Decimal(0),
             )
             actual_pct = (class_value / self.total_value) * 100
-            result[ac] = Allocation(
-                asset_class=ac, actual_pct=actual_pct, target_pct=Decimal(0)
+            result[aid] = Allocation(
+                asset_id=aid, actual_pct=actual_pct, target_pct=Decimal(0)
             )
         return result
 
@@ -78,4 +74,4 @@ class SavingsPlan(BaseModel):
     name: str
     amount: Decimal
     interval: str
-    asset_class: AssetClass | None = None
+    asset_id: str | None = None

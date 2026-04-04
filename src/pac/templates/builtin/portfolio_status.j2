@@ -1,0 +1,9 @@
+{# Expected data: deviations (list[DeviationResult]), snapshot (PortfolioSnapshot) #}
+{{ heading(escape("Portfolio Status")) }}
+
+{% for dev in deviations %}
+{{ emoji(dev.severity.value) }} {{ bold(escape(dev.name)) }}{{ literal(":") }} {{ escape(dev.actual_pct | pctfmt) }} {{ literal("/") }} {{ escape(dev.target_pct | pctfmt) }} {{ literal("(") }}{{ literal("+") if dev.deviation_pct > 0 else "" }}{{ escape(dev.deviation_pct | pctfmt) }}{{ literal(")") }}
+{% endfor %}
+
+Cash{{ literal(":") }} {{ escape(snapshot.cash | eurfmt) }}
+Total{{ literal(":") }} {{ escape(snapshot.total_value | eurfmt) }}

@@ -20,6 +20,28 @@ Reads your Trade Republic portfolio via the `pytr` library (read-only), detects 
 - **Configurable target allocation** — Default 70/15/15, fully adjustable via environment variables
 - **Self-hosted Docker container** — Single image, deploy anywhere
 
+## Repository Structure
+
+```
+src/pac/
+├── __main__.py               # Structlog config + uvicorn runner
+├── app.py                    # Starlette ASGI app (webhook, job, health endpoints)
+├── config/                   # Settings loaded from pac.yaml (YAML + pydantic validation)
+├── models/                   # Pydantic data models (portfolio, signals)
+├── tr/                       # TRClient wrapper + tr_session() context manager
+├── analysis/                 # Deviation calculation, PAC redistribution
+├── rules/                    # SignalRule protocol, registry, builtin rules
+│   └── builtin/              # Threshold, cycle inversion rules
+├── delivery/                 # Delivery channel abstraction
+│   └── channels/telegram/    # Telegram bot, formatting, keyboards
+├── templates/                # Template engine + format adapters
+└── orchestrator/             # Signal dispatch orchestration
+tests/                        # Shared fixtures + integration tests
+docs/                         # Project documentation + ADRs
+```
+
+Each submodule has co-located `tests/`, `features/`, and `README.md`.
+
 ## Quick Start
 
 Pull the Docker image:
@@ -28,18 +50,35 @@ Pull the Docker image:
 docker pull ghcr.io/enea-scaccabarozzi/trade-republic-pac:latest
 ```
 
-Download and fill in the environment file:
+Download and customise the config file:
 
 ```bash
-curl -O https://raw.githubusercontent.com/enea-scaccabarozzi/trade-republic-pac/main/.env.example
-cp .env.example .env
-# Edit .env with your credentials
+curl -O https://raw.githubusercontent.com/enea-scaccabarozzi/trade-republic-pac/main/pac.yaml.example
+cp pac.yaml.example pac.yaml
+# Edit pac.yaml — secrets use ${ENV_VAR} interpolation
+```
+
+Set required environment variables for secrets referenced in `pac.yaml`:
+
+```bash
+export PAC_JOB_SECRET="your-job-secret"
+export TR_PHONE_NUMBER="+49..."
+export TR_PIN="1234"
+export TELEGRAM_BOT_TOKEN="123456:ABC..."
+export TELEGRAM_CHAT_ID="987654321"
+export TELEGRAM_WEBHOOK_URL="https://your-domain.com/webhook"
+export TELEGRAM_WEBHOOK_SECRET="your-webhook-secret"
 ```
 
 ### Test Run
 
 ```bash
-docker run --rm --env-file .env ghcr.io/enea-scaccabarozzi/trade-republic-pac:latest
+docker run --rm \
+  -v "$(pwd)/pac.yaml:/app/pac.yaml:ro" \
+  -e PAC_JOB_SECRET -e TR_PHONE_NUMBER -e TR_PIN \
+  -e TELEGRAM_BOT_TOKEN -e TELEGRAM_CHAT_ID \
+  -e TELEGRAM_WEBHOOK_URL -e TELEGRAM_WEBHOOK_SECRET \
+  ghcr.io/enea-scaccabarozzi/trade-republic-pac:latest
 ```
 
 ### Persistent Deployment
@@ -50,7 +89,16 @@ Create a `compose.yml`:
 services:
   pac:
     image: ghcr.io/enea-scaccabarozzi/trade-republic-pac:latest
-    env_file: .env
+    volumes:
+      - ./pac.yaml:/app/pac.yaml:ro
+    environment:
+      - PAC_JOB_SECRET
+      - TR_PHONE_NUMBER
+      - TR_PIN
+      - TELEGRAM_BOT_TOKEN
+      - TELEGRAM_CHAT_ID
+      - TELEGRAM_WEBHOOK_URL
+      - TELEGRAM_WEBHOOK_SECRET
     restart: unless-stopped
 ```
 
@@ -60,63 +108,64 @@ docker compose up -d
 
 ## Configuration
 
-All configuration via environment variables with `PAC_` prefix. See `.env.example` for a ready-to-use template.
+All configuration lives in a single YAML file (`pac.yaml`). See [`pac.yaml.example`](pac.yaml.example) for a ready-to-use template.
 
-### Trade Republic Credentials
+Secrets are kept out of the YAML file using `${ENV_VAR}` interpolation — the config loader substitutes environment variable values at load time.
 
-| Variable              | Required | Default           | Description                |
-| --------------------- | -------- | ----------------- | -------------------------- |
-| `PAC_TR_PHONE_NUMBER` | Yes      | —                 | TR account phone number    |
-| `PAC_TR_PIN`          | Yes      | —                 | TR account PIN             |
-| `PAC_TR_COOKIES_PATH` | No       | `/tmp/tr_cookies` | Path to TR session cookies |
+### Config File Location
 
-### Telegram
+The loader searches for config in this order:
 
-| Variable                 | Required | Default | Description            |
-| ------------------------ | -------- | ------- | ---------------------- |
-| `PAC_TELEGRAM_BOT_TOKEN` | Yes      | —       | Telegram bot API token |
-| `PAC_TELEGRAM_CHAT_ID`   | Yes      | —       | Telegram chat ID       |
+1. Explicit path passed to `load_config()`
+2. `PAC_CONFIG_PATH` environment variable
+3. `pac.yaml` in the current working directory
 
-### Webhook & Scheduling
+### Config Structure
 
-| Variable             | Required | Default | Description                         |
-| -------------------- | -------- | ------- | ----------------------------------- |
-| `PAC_WEBHOOK_URL`    | No       | `""`    | Public URL for Telegram webhook     |
-| `PAC_WEBHOOK_SECRET` | Yes      | —       | Secret for Telegram webhook header  |
-| `PAC_JOB_SECRET`     | Yes      | —       | Secret token for scheduled job auth |
+```yaml
+version: 1
 
-### Target Allocation
+app:
+  log_level: INFO          # Log level (DEBUG, INFO, WARNING, ERROR)
+  dev_mode: false           # Enable dev mode
+  port: 8080                # Server port
+  job_secret: "${PAC_JOB_SECRET}"  # HMAC secret for job endpoints
 
-| Variable                | Required | Default | Description               |
-| ----------------------- | -------- | ------- | ------------------------- |
-| `PAC_TARGET_STOCKS_PCT` | No       | `70`    | Stock allocation target % |
-| `PAC_TARGET_GOLD_PCT`   | No       | `15`    | Gold allocation target %  |
-| `PAC_TARGET_BONDS_PCT`  | No       | `15`    | Bond allocation target %  |
+broker:
+  type: trade_republic
+  phone_number: "${TR_PHONE_NUMBER}"
+  pin: "${TR_PIN}"
+  cookies_path: /tmp/tr_cookies
 
-### Asset ISINs
+assets:                     # Dynamic — add/remove/rename freely
+  - id: stocks
+    name: Stocks ETF
+    isin: IE00BK5BQT80
+    target_pct: 70
+  - id: gold
+    name: Gold ETC
+    isin: IE00B4ND3602
+    target_pct: 15
+  - id: bonds
+    name: Bond ETF
+    isin: IE00B3F81409
+    target_pct: 15
 
-| Variable          | Required | Default        | Description             |
-| ----------------- | -------- | -------------- | ----------------------- |
-| `PAC_ISIN_STOCKS` | No       | `IE00BK5BQT80` | FTSE All-World ETF ISIN |
-| `PAC_ISIN_GOLD`   | No       | `IE00B4ND3602` | Physical Gold ETC ISIN  |
-| `PAC_ISIN_BONDS`  | No       | `IE00B3F81409` | Gov Bond ETF ISIN       |
+channels:                   # Delivery channel configs (validated per-channel)
+  telegram:
+    type: telegram
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+    webhook:
+      url: "${TELEGRAM_WEBHOOK_URL}"
+      secret: "${TELEGRAM_WEBHOOK_SECRET}"
 
-### Deviation Thresholds
+signals: []                 # Signal rule definitions (validated per-rule)
+```
 
-| Variable                      | Required | Default | Description                                  |
-| ----------------------------- | -------- | ------- | -------------------------------------------- |
-| `PAC_DEVIATION_WARNING_PCT`   | No       | `3.0`   | Deviation % for warning signal               |
-| `PAC_DEVIATION_CRITICAL_PCT`  | No       | `5.0`   | Deviation % for critical signal              |
-| `PAC_CYCLE_INVERSION_MIN_PCT` | No       | `2.0`   | Min deviation % per side for cycle inversion |
+Assets are fully dynamic — there is no fixed enum. Each asset has a string `id`, display `name`, `isin`, and `target_pct`. Target percentages are validated but do not need to sum to 100 at the model level.
 
-### PAC Settings
-
-| Variable                 | Required | Default  | Description                         |
-| ------------------------ | -------- | -------- | ----------------------------------- |
-| `PAC_PAC_MONTHLY_BUDGET` | No       | `500.00` | Monthly PAC investment budget (EUR) |
-| `PAC_PAC_DAY_OF_MONTH`   | No       | `14`     | Day of month for PAC calculation    |
-
-> For development-only variables (`PAC_DEV`, etc.), see [CONTRIBUTING.md](CONTRIBUTING.md).
+> For development setup and commands, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
@@ -149,6 +198,18 @@ Starlette ASGI application running in a Docker container. Telegram webhook handl
 | `/status`       | Portfolio allocation & deviations          |
 | `/rebalance`    | Evaluate rebalance signals                 |
 | `/redistribute` | Calculate monthly PAC plan                 |
+
+## Extending
+
+Add custom signal rules and delivery channels with scaffolding commands:
+
+```bash
+just new-rule my_rule       # scaffold a signal rule
+just new-channel my_channel # scaffold a delivery channel
+just validate-config        # validate pac.yaml references
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#extending-the-system) for detailed guides.
 
 ## For Developers
 

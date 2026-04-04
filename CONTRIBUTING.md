@@ -135,6 +135,49 @@ updated stuff          # no type, vague description
 feat: Fix bug          # wrong type for a bug fix
 ```
 
+## Extending the System
+
+### Adding a Signal Rule
+
+1. Run: `just new-rule my_rule_name`
+2. Edit `src/pac/rules/builtin/my_rule_name.py` — add params fields, implement `evaluate()`
+3. Edit the template at `src/pac/templates/builtin/my_rule_name.j2`
+4. Add a signal entry to `pac.yaml`:
+   ```yaml
+   signals:
+     - name: my_signal
+       rule: my_rule_name
+       schedule: "0 * * * *"
+       channels: [telegram]
+       params: {}
+       template: my_rule_name
+   ```
+5. Run: `just validate` — ensure lint + typecheck + tests pass
+6. Run: `just validate-config` — ensure pac.yaml references are valid
+
+### Adding a Delivery Channel
+
+1. Run: `just new-channel my_channel`
+2. Edit `src/pac/delivery/channels/my_channel/channel.py` — add config fields, implement `send()`
+3. Add channel config to `pac.yaml`:
+   ```yaml
+   channels:
+     my_channel:
+       type: my_channel
+       # your config fields
+   ```
+4. If your channel needs a custom format:
+   - Create a `FormatAdapter` subclass in `src/pac/templates/adapters/`
+   - Set `supported_formats` to return your adapter's name
+5. Run: `just validate` then `just validate-config`
+
+### Validating Configuration
+
+```bash
+just validate-config                       # validate pac.yaml
+just validate-config --config custom.yaml  # validate a specific file
+```
+
 ## Testing
 
 - Write tests for all new behavior. Tests live in `tests/`.

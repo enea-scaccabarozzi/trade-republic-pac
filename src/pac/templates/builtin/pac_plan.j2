@@ -1,0 +1,9 @@
+{# Expected data: plan (PacPlan) #}
+{{ heading(escape("Monthly PAC Redistribution")) }}
+
+Budget{{ literal(":") }} {{ escape(plan.total_budget | eurfmt) }}
+
+{% for aid, alloc in plan.allocations.items() %}
+{{ list_item(bold(escape(alloc.name)) ~ literal(":") ~ " " ~ escape(alloc.amount | eurfmt) ~ " " ~ literal("(") ~ escape(alloc.pct_of_budget | pctfmt) ~ literal(")")) }}
+  Current{{ literal(":") }} {{ escape(alloc.current_pct | pctfmt) }} → Target{{ literal(":") }} {{ escape(alloc.target_pct | pctfmt) }}
+{% endfor %}

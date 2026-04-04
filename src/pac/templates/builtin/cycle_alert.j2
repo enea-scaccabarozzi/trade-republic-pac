@@ -1,0 +1,7 @@
+{# Expected data: signal (Signal) #}
+{{ emoji(signal.severity.value) }} {{ bold("Signal: " ~ escape(signal.name)) }}
+Severity{{ literal(":") }} {{ code(signal.severity.value | upper) }}
+
+{{ escape(signal.message) }}
+
+{{ italic(escape(signal.triggered_at | datefmt)) }}

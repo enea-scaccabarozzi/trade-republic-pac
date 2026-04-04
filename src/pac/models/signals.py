@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,13 +30,13 @@ class Signal(BaseModel):
     severity: SignalSeverity
     message: str
     triggered_at: datetime
-    metadata: dict[str, str | float | int | bool] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RebalanceAction(BaseModel):
     """Recommended action to rebalance the portfolio."""
 
-    asset_class: str
+    asset_id: str
     action: ActionType
     reason: str
     current_pct: float

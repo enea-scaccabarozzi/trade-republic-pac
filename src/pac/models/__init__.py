@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pac.models.portfolio import (
     Allocation,
-    AssetClass,
     PortfolioSnapshot,
     Position,
     SavingsPlan,
@@ -12,7 +11,6 @@ from pac.models.signals import ActionType, RebalanceAction, Signal, SignalSeveri
 __all__ = [
     "ActionType",
     "Allocation",
-    "AssetClass",
     "PortfolioSnapshot",
     "Position",
     "RebalanceAction",

@@ -45,3 +45,17 @@ docker-build:
 # Run Docker container
 docker-run:
     docker run --rm --env-file .env ghcr.io/enea-scaccabarozzi/trade-republic-pac:latest
+
+# Development scaffolding
+
+# Scaffold a new signal rule
+new-rule name:
+    uv run python scripts/scaffold_rule.py {{ name }}
+
+# Scaffold a new delivery channel
+new-channel name:
+    uv run python scripts/scaffold_channel.py {{ name }}
+
+# Validate pac.yaml configuration
+validate-config *args:
+    uv run python scripts/validate_config.py {{ args }}

@@ -6,7 +6,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 from pac.config import Settings
-from pac.models.portfolio import AssetClass, PortfolioSnapshot
+from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import SignalSeverity
 
 _SEVERITY_ORDER: dict[SignalSeverity, int] = {
@@ -17,9 +17,10 @@ _SEVERITY_ORDER: dict[SignalSeverity, int] = {
 
 
 class DeviationResult(BaseModel):
-    """Deviation analysis for a single asset class."""
+    """Deviation analysis for a single asset."""
 
-    asset_class: AssetClass
+    asset_id: str
+    name: str
     actual_pct: Decimal
     target_pct: Decimal
     deviation_pct: Decimal
@@ -30,25 +31,21 @@ class DeviationResult(BaseModel):
 class DeviationReport(BaseModel):
     """Aggregated deviation analysis for the whole portfolio."""
 
-    deviations: dict[AssetClass, DeviationResult]
+    deviations: dict[str, DeviationResult]
     max_severity: SignalSeverity
     timestamp: datetime
 
 
-def get_target_allocations(settings: Settings) -> dict[AssetClass, Decimal]:
-    """Extract target percentages from Settings as Decimal values.
+def get_target_allocations(settings: Settings) -> dict[str, Decimal]:
+    """Extract target percentages from Settings.
 
     Args:
-        settings: Application settings containing target allocation ints.
+        settings: Application settings containing asset configs.
 
     Returns:
-        Mapping of each asset class to its target percentage as Decimal.
+        Mapping of each asset ID to its target percentage as Decimal.
     """
-    return {
-        AssetClass.STOCKS: Decimal(settings.target_stocks_pct),
-        AssetClass.GOLD: Decimal(settings.target_gold_pct),
-        AssetClass.BONDS: Decimal(settings.target_bonds_pct),
-    }
+    return settings.target_allocations
 
 
 def classify_severity(
@@ -76,6 +73,9 @@ def classify_severity(
 def calculate_deviations(
     snapshot: PortfolioSnapshot,
     settings: Settings,
+    *,
+    warning_pct: Decimal = Decimal("3.0"),
+    critical_pct: Decimal = Decimal("5.0"),
 ) -> DeviationReport:
     """Calculate portfolio deviations from target allocations.
 
@@ -86,26 +86,32 @@ def calculate_deviations(
 
     Args:
         snapshot: Current portfolio state.
-        settings: Application settings with targets and thresholds.
+        settings: Application settings with targets.
+        warning_pct: Deviation % to trigger WARNING severity.
+        critical_pct: Deviation % to trigger CRITICAL severity.
 
     Returns:
-        A DeviationReport with per-class results and the worst severity.
+        A DeviationReport with per-asset results and the worst severity.
     """
     targets = get_target_allocations(settings)
-    deviations: dict[AssetClass, DeviationResult] = {}
+    asset_ids = list(targets.keys())
+    allocs = snapshot.allocations(asset_ids)
+    deviations: dict[str, DeviationResult] = {}
 
-    for ac in AssetClass:
-        actual_pct = snapshot.allocations[ac].actual_pct
-        target_pct = targets[ac]
+    for asset in settings.assets:
+        aid = asset.id
+        actual_pct = allocs[aid].actual_pct
+        target_pct = targets[aid]
         deviation_pct = actual_pct - target_pct
         abs_deviation_pct = abs(deviation_pct)
         severity = classify_severity(
             abs_deviation_pct,
-            settings.deviation_warning_pct,
-            settings.deviation_critical_pct,
+            warning_pct,
+            critical_pct,
         )
-        deviations[ac] = DeviationResult(
-            asset_class=ac,
+        deviations[aid] = DeviationResult(
+            asset_id=aid,
+            name=asset.name,
             actual_pct=actual_pct,
             target_pct=target_pct,
             deviation_pct=deviation_pct,
