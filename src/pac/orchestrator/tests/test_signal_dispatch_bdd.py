@@ -222,9 +222,7 @@ def dispatch_signal(
     mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
     with patch("pac.orchestrator.orchestrator.tr_session", return_value=mock_ctx):
-        result = asyncio.get_event_loop().run_until_complete(
-            orchestrator.dispatch_signal("deviation_check")
-        )
+        result = asyncio.run(orchestrator.dispatch_signal("deviation_check"))
         dispatch_context["result"] = result
         return result
 
@@ -275,7 +273,7 @@ def dispatch_unknown_signal(sig_name: str) -> Exception | None:
     )
     orch = Orchestrator.from_settings(settings)
     try:
-        asyncio.get_event_loop().run_until_complete(orch.dispatch_signal(sig_name))
+        asyncio.run(orch.dispatch_signal(sig_name))
     except SignalNotFoundError as e:
         return e
     return None
@@ -293,9 +291,7 @@ def evaluate_signal(
     mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
     with patch("pac.orchestrator.orchestrator.tr_session", return_value=mock_ctx):
-        return asyncio.get_event_loop().run_until_complete(
-            orchestrator.evaluate_signal("deviation_check")
-        )
+        return asyncio.run(orchestrator.evaluate_signal("deviation_check"))
 
 
 @then("the rule is evaluated with configured params")
@@ -434,9 +430,7 @@ def dispatch_named_signal(
     mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
     with patch("pac.orchestrator.orchestrator.tr_session", return_value=mock_ctx):
-        result = asyncio.get_event_loop().run_until_complete(
-            orchestrator.dispatch_signal(sig_name)
-        )
+        result = asyncio.run(orchestrator.dispatch_signal(sig_name))
         dispatch_context["result"] = result
         return result
 

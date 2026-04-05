@@ -105,8 +105,7 @@ class Orchestrator:
                     raise ValueError(msg)
             if not template_engine.has_template(sig.template):
                 msg = (
-                    f"Signal '{sig.name}' references unknown "
-                    f"template '{sig.template}'"
+                    f"Signal '{sig.name}' references unknown template '{sig.template}'"
                 )
                 raise ValueError(msg)
 

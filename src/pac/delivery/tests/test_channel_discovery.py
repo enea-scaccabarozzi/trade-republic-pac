@@ -26,9 +26,9 @@ class TestDiscoverChannels:
     def test_discovered_channels_are_delivery_channel_subclasses(self) -> None:
         channels = discover_channels()
         for name, cls in channels.items():
-            assert issubclass(
-                cls, DeliveryChannel
-            ), f"{name} not a DeliveryChannel subclass"
+            assert issubclass(cls, DeliveryChannel), (
+                f"{name} not a DeliveryChannel subclass"
+            )
 
     def test_empty_package_returns_empty(self, tmp_path: Path) -> None:
         pkg_dir = tmp_path / "empty_channels"

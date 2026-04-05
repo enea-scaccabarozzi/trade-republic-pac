@@ -206,8 +206,7 @@ def render_empty_data(context: dict[str, Any], template_name: str) -> None:
 
 @when(
     parsers.parse(
-        'rendering "{template_name}" '
-        "with a data key that shadows a reserved name"
+        'rendering "{template_name}" with a data key that shadows a reserved name'
     )
 )
 def render_with_collision(context: dict[str, Any], template_name: str) -> None:

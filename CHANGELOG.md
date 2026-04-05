@@ -10,6 +10,10 @@ Do not edit manually.
 
 ### Changed
 
+- Setup flow reordered: `just setup` now runs TR → Telegram → GCP (was TR → GCP → Telegram) to eliminate manual prompts for bot_token/chat_id during GCP deploy
+- `setup_telegram.py` now supports `--skip-webhook` flag to defer webhook registration
+- GCP deploy (`setup_gcp.py`) now registers Telegram webhook automatically after Cloud Run deployment
+- `setup_telegram.py` CLI uses `@app.callback(invoke_without_command=True)` for default command with `register-webhook` subcommand
 - `app.py` simplified to thin HTTP adapter over `Orchestrator` — no business logic, just auth + request routing
 - Restructured project from flat layout to feature-based directory structure — each submodule (`config/`, `rules/`, `delivery/`, `models/`, `analysis/`, `tr/`, `templates/`, `orchestrator/`) now has co-located `tests/`, `features/`, and `README.md`
 - Renamed `signals/` to `rules/` with `builtin/` subdirectory for built-in rule implementations
@@ -21,9 +25,13 @@ Do not edit manually.
 - `SignalRule` converted from `typing.Protocol` to `ABC + Generic[ParamsT]` with `__init_subclass__` auto-extraction of `params_model`
 - Signal rules now receive typed params (`ThresholdParams`, `CycleInversionParams`, `PacPlanParams`) instead of raw settings
 - `Signal.metadata` type widened to `dict[str, Any]`
+- Setup scripts (`setup_tr.py`, `setup_telegram.py`) now write environment variables to `.env` after collecting credentials
+- `just setup` meta-recipe calls `just generate-env` at the end to auto-generate `PAC_JOB_SECRET`
 
 ### Added
 
+- Added `just setup-webhook` command for standalone webhook registration after separate Telegram + GCP setup
+- Added `register-webhook` subcommand to `setup_telegram.py` — reads cached Telegram + GCP data, registers webhook, updates `.env`
 - Added `Orchestrator` class (`src/pac/orchestrator/`) for framework-agnostic signal dispatch with `from_settings()` factory
 - Added dynamic signal routing via `POST /jobs/signal/{signal_name}` — replaces hardcoded per-signal routes
 - Added `dispatch_signal()`, `evaluate_signal()`, `get_portfolio_status()`, `compute_pac_plan()` on `Orchestrator`
@@ -51,6 +59,17 @@ Do not edit manually.
 - Added `pyyaml` dependency
 - Auto-discovery (`discover_rules()`) scans `pac.rules.builtin` for concrete `SignalRule` subclasses
 - `PacPlanRule` for monthly PAC plan computation with `compute_pac_plan()` (Settings-free)
+- Added interactive setup scripts with Rich UI: `just setup-tr`, `just setup-gcp`, `just setup-telegram`
+- Added `just setup` meta-recipe that chains all setup scripts in dependency order (TR → GCP → Telegram)
+- Added `.pac/` cache directory for setup script state (gitignored)
+- Added dev dependencies: typer, rich, telethon
+- Added `just generate-env` command to regenerate `.env` from cached setup results (`.pac/*.json`)
+
+### Fixed
+
+- `.env.example` variable names now match `pac.yaml.example` `${ENV_VAR}` references (was using `PAC_` prefix)
+- `.env` is now gitignored to prevent accidental secret commits
+- `.env` is loaded at startup via `python-dotenv` so `just run` works with local `.env` files
 
 ### Removed
 

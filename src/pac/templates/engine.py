@@ -84,7 +84,7 @@ class TemplateEngine:
         collisions = _RESERVED_CONTEXT_KEYS & data.keys()
         if collisions:
             raise ValueError(
-                f"Data keys shadow reserved context names: " f"{sorted(collisions)}"
+                f"Data keys shadow reserved context names: {sorted(collisions)}"
             )
 
         template = self._env.get_template(f"{template_name}.j2")

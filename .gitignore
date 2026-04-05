@@ -12,3 +12,9 @@ wheels/
 # Coverage reports
 .coverage
 htmlcov/
+
+# Setup script cache
+.pac/
+
+# Environment secrets
+.env

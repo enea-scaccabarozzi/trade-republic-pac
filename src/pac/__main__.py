@@ -4,10 +4,13 @@ import logging
 
 import structlog
 import uvicorn
+from dotenv import load_dotenv
 
 
 def main() -> None:
     """Application entry point — configure logging and start ASGI server."""
+    load_dotenv(override=False)
+
     from pac.config import load_config
 
     settings = load_config()

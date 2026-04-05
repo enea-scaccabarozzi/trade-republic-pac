@@ -158,7 +158,7 @@ class TestInit:
         print(f"  Created: {p}")
 
     print()
-    print("Optionally add re-exports to " "src/pac/rules/builtin/__init__.py")
+    print("Optionally add re-exports to src/pac/rules/builtin/__init__.py")
     print(
         "Discovery works without re-exports — "
         "discover_rules() scans .py files directly."

@@ -80,7 +80,7 @@ def stopped_channel() -> dict[str, Any]:
     channel = TelegramChannel(config)
     mock_app = _mock_ptb_app()
     channel._ptb_app = mock_app
-    asyncio.get_event_loop().run_until_complete(channel.stop())
+    asyncio.run(channel.stop())
     return {
         "channel": channel,
         "message": _make_message(),
@@ -120,7 +120,7 @@ def send_message(context: dict[str, Any]) -> None:
     try:
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(channel.send(message))
+        asyncio.run(channel.send(message))
         context["send_error"] = None
     except RuntimeError as exc:
         context["send_error"] = exc
@@ -145,7 +145,7 @@ def send_lifecycle_message(context: dict[str, Any]) -> None:
     channel: TelegramChannel = context["channel"]
     msg = _make_message()
     context["message"] = msg
-    asyncio.get_event_loop().run_until_complete(channel.send(msg))
+    asyncio.run(channel.send(msg))
 
 
 @when("the channel is stopped")
@@ -154,10 +154,10 @@ def stop_channel(context: dict[str, Any]) -> None:
 
     channel: TelegramChannel = context["channel"]
     if context.get("needs_stop"):
-        asyncio.get_event_loop().run_until_complete(channel.stop())
+        asyncio.run(channel.stop())
         context["needs_stop"] = False
     else:
-        asyncio.get_event_loop().run_until_complete(channel.stop())
+        asyncio.run(channel.stop())
 
 
 # ── Then steps ──────────────────────────────────────────────────────
