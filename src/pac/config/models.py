@@ -36,6 +36,12 @@ class AssetConfig(BaseModel):
     name: str
     isin: str = Field(pattern=r"^[A-Z]{2}[A-Z0-9]{10}$")
     target_pct: Decimal = Field(ge=0, le=100)
+    ticker: str | None = Field(
+        default=None,
+        description=(
+            "Yahoo Finance ticker symbol (e.g. 'EUNL.DE'). Required for backtesting."
+        ),
+    )
 
 
 class SignalConfig(BaseModel):

@@ -429,6 +429,37 @@ Starlette ASGI application running in a Docker container. Telegram webhook handl
 | `/rebalance`    | Evaluate rebalance signals                 |
 | `/redistribute` | Calculate monthly PAC plan                 |
 
+## Backtesting
+
+Validate your signal and strategy configuration against historical price data before deploying live.
+
+### Quick Start
+
+Install the backtest dependencies:
+
+```bash
+uv sync --group backtest
+```
+
+Launch the interactive CLI:
+
+```bash
+uv run python -m pac.backtester
+# or
+just backtest
+```
+
+### Commands
+
+| Command      | Description                                            |
+| ------------ | ------------------------------------------------------ |
+| `run`        | Run a backtest with a selected strategy and date range |
+| `strategies` | List all available strategies                          |
+| `results`    | List saved backtest results                            |
+| `show`       | Display metrics and equity curve for a saved result    |
+
+Tickers for historical data are configured alongside each asset in `pac.yaml`. See [`pac.yaml.example`](pac.yaml.example) for reference.
+
 ## Extending
 
 Add custom signal rules and delivery channels with scaffolding commands:

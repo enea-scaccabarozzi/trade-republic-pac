@@ -104,28 +104,36 @@ All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in
 
 ## Learned Patterns
 
-| Pattern                                                                               | Location                               | Date    |
-| ------------------------------------------------------------------------------------- | -------------------------------------- | ------- |
-| All signal rules subclass `SignalRule` ABC+Generic[ParamsT] (not Protocol)            | `src/pac/rules/base.py`                | 2026-04 |
-| Rules auto-discovered via `discover_rules()` scanning `pac.rules.builtin`             | `src/pac/rules/discovery.py`           | 2026-04 |
-| Configuration loaded from YAML (`pac.yaml`) via `load_config()`                       | `src/pac/config/loader.py`             | 2026-04 |
-| Assets are dynamic string IDs (no `AssetClass` enum)                                  | `src/pac/config/models.py`             | 2026-04 |
-| TR connections are per-request via `tr_session()` context manager                     | `src/pac/tr/client.py`                 | 2026-04 |
-| Telegram webhook validated via `X-Telegram-Bot-Api-Secret-Token` header               | `src/pac/app.py`                       | 2026-04 |
-| Job endpoints validated via `X-Job-Secret` header with `hmac.compare_digest`          | `src/pac/app.py`                       | 2026-04 |
-| Delivery channels subclass `DeliveryChannel` ABC+Generic[ConfigT]                     | `src/pac/delivery/base.py`             | 2026-04 |
-| Channels auto-discovered via `discover_channels()` scanning channel packages          | `src/pac/delivery/discovery.py`        | 2026-04 |
-| `RenderedMessage` is the channel-agnostic output model for delivery                   | `src/pac/delivery/base.py`             | 2026-04 |
-| Interactive features (commands, keyboards) are Telegram-specific, not in ABC          | `src/pac/delivery/channels/telegram/`  | 2026-04 |
-| `TemplateEngine` uses Jinja2 `SandboxedEnvironment` with adapter-injected globals     | `src/pac/templates/engine.py`          | 2026-04 |
-| `FormatAdapter` ABC defines channel-agnostic formatting (bold, escape, literal, etc.) | `src/pac/templates/adapters/base.py`   | 2026-04 |
-| `MarkdownV2Adapter` and `PlainTextAdapter` are the two built-in adapters              | `src/pac/templates/adapters/`          | 2026-04 |
-| 4 builtin .j2 templates: threshold_alert, cycle_alert, pac_plan, portfolio_status     | `src/pac/templates/builtin/`           | 2026-04 |
-| `literal()` escapes structural characters that appear as fixed text in templates      | `src/pac/templates/adapters/base.py`   | 2026-04 |
-| `Orchestrator.from_settings()` wires config → rules → templates → channels            | `src/pac/orchestrator/orchestrator.py` | 2026-04 |
-| `app.py` is a thin HTTP adapter; all business logic lives in `Orchestrator`           | `src/pac/app.py`                       | 2026-04 |
-| Dynamic signal routing via `POST /jobs/signal/{signal_name}`                          | `src/pac/app.py`                       | 2026-04 |
-| `dispatch_signal()` runs the full pipeline: evaluate → render → send                  | `src/pac/orchestrator/orchestrator.py` | 2026-04 |
-| `build_template_data()` classmethod on `SignalRule` produces template context         | `src/pac/rules/base.py`                | 2026-04 |
-| `set_orchestrator()` on `DeliveryChannel` injects orchestrator for interactive DI     | `src/pac/delivery/base.py`             | 2026-04 |
-| Serverless-first lifespan — zero network calls at startup                             | `src/pac/app.py`                       | 2026-04 |
+| Pattern                                                                                                                               | Location                                     | Date    |
+| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------- |
+| All signal rules subclass `SignalRule` ABC+Generic[ParamsT] (not Protocol)                                                            | `src/pac/rules/base.py`                      | 2026-04 |
+| Rules auto-discovered via `discover_rules()` scanning `pac.rules.builtin`                                                             | `src/pac/rules/discovery.py`                 | 2026-04 |
+| Configuration loaded from YAML (`pac.yaml`) via `load_config()`                                                                       | `src/pac/config/loader.py`                   | 2026-04 |
+| Assets are dynamic string IDs (no `AssetClass` enum)                                                                                  | `src/pac/config/models.py`                   | 2026-04 |
+| TR connections are per-request via `tr_session()` context manager                                                                     | `src/pac/tr/client.py`                       | 2026-04 |
+| Telegram webhook validated via `X-Telegram-Bot-Api-Secret-Token` header                                                               | `src/pac/app.py`                             | 2026-04 |
+| Job endpoints validated via `X-Job-Secret` header with `hmac.compare_digest`                                                          | `src/pac/app.py`                             | 2026-04 |
+| Delivery channels subclass `DeliveryChannel` ABC+Generic[ConfigT]                                                                     | `src/pac/delivery/base.py`                   | 2026-04 |
+| Channels auto-discovered via `discover_channels()` scanning channel packages                                                          | `src/pac/delivery/discovery.py`              | 2026-04 |
+| `RenderedMessage` is the channel-agnostic output model for delivery                                                                   | `src/pac/delivery/base.py`                   | 2026-04 |
+| Interactive features (commands, keyboards) are Telegram-specific, not in ABC                                                          | `src/pac/delivery/channels/telegram/`        | 2026-04 |
+| `TemplateEngine` uses Jinja2 `SandboxedEnvironment` with adapter-injected globals                                                     | `src/pac/templates/engine.py`                | 2026-04 |
+| `FormatAdapter` ABC defines channel-agnostic formatting (bold, escape, literal, etc.)                                                 | `src/pac/templates/adapters/base.py`         | 2026-04 |
+| `MarkdownV2Adapter` and `PlainTextAdapter` are the two built-in adapters                                                              | `src/pac/templates/adapters/`                | 2026-04 |
+| 4 builtin .j2 templates: threshold_alert, cycle_alert, pac_plan, portfolio_status                                                     | `src/pac/templates/builtin/`                 | 2026-04 |
+| `literal()` escapes structural characters that appear as fixed text in templates                                                      | `src/pac/templates/adapters/base.py`         | 2026-04 |
+| `Orchestrator.from_settings()` wires config → rules → templates → channels                                                            | `src/pac/orchestrator/orchestrator.py`       | 2026-04 |
+| `app.py` is a thin HTTP adapter; all business logic lives in `Orchestrator`                                                           | `src/pac/app.py`                             | 2026-04 |
+| Dynamic signal routing via `POST /jobs/signal/{signal_name}`                                                                          | `src/pac/app.py`                             | 2026-04 |
+| `dispatch_signal()` runs the full pipeline: evaluate → render → send                                                                  | `src/pac/orchestrator/orchestrator.py`       | 2026-04 |
+| `build_template_data()` classmethod on `SignalRule` produces template context                                                         | `src/pac/rules/base.py`                      | 2026-04 |
+| `set_orchestrator()` on `DeliveryChannel` injects orchestrator for interactive DI                                                     | `src/pac/delivery/base.py`                   | 2026-04 |
+| Serverless-first lifespan — zero network calls at startup                                                                             | `src/pac/app.py`                             | 2026-04 |
+| All backtest strategies subclass `BacktestStrategy` ABC+Generic[ParamsT] (stateful, unlike SignalRule)                                | `src/pac/backtester/strategies/base.py`      | 2026-04 |
+| Strategies auto-discovered via `discover_strategies()` scanning `pac.backtester.strategies.builtin`                                   | `src/pac/backtester/strategies/discovery.py` | 2026-04 |
+| `BacktestSimulator` runs Monte Carlo (N iterations); price data must be pre-loaded as `dict[ticker, PriceSeries]`                     | `src/pac/backtester/engine/simulator.py`     | 2026-04 |
+| Backtester reuses production `SignalRule` instances against synthetic `PortfolioSnapshot` — rules never know they're being backtested | `src/pac/backtester/engine/simulator.py`     | 2026-04 |
+| Results persisted as timestamped JSON to `.pac/backtests/` via `ResultStore`; schema includes equity curve bands (P5/median/P95)      | `src/pac/backtester/results/store.py`        | 2026-04 |
+| Metrics computed via quantstats per MC iteration, aggregated to P5/median/P95 via `MetricsCalculator`                                 | `src/pac/backtester/metrics/calculator.py`   | 2026-04 |
+| Assets need `ticker: EUNL.DE` field in `pac.yaml` for yfinance resolution; `resolve_tickers()` errors on missing tickers              | `src/pac/backtester/data/provider.py`        | 2026-04 |
+| Backtester is an optional isolated module — zero imports from main `pac` app; install with `just backtest-sync`                       | `src/pac/backtester/`                        | 2026-04 |

@@ -237,6 +237,25 @@ class TestAssetConfig:
                 target_pct=Decimal("101"),
             )
 
+    def test_asset_ticker_optional_default_none(self) -> None:
+        cfg = AssetConfig(
+            id="stocks",
+            name="Stocks",
+            isin="IE00BK5BQT80",
+            target_pct=Decimal("50"),
+        )
+        assert cfg.ticker is None
+
+    def test_asset_ticker_accepted(self) -> None:
+        cfg = AssetConfig(
+            id="stocks",
+            name="Stocks",
+            isin="IE00BK5BQT80",
+            target_pct=Decimal("50"),
+            ticker="EUNL.DE",
+        )
+        assert cfg.ticker == "EUNL.DE"
+
 
 class TestSignalConfig:
     def test_signal_config_empty_name_accepted(self) -> None:
@@ -305,3 +324,37 @@ class TestSettingsEdgeCases:
         )
         with pytest.raises(ValidationError, match="sum to 100"):
             Settings.model_validate(data)
+
+    def test_settings_valid_with_tickers(self) -> None:
+        data = _base_settings_data(
+            assets=[
+                {
+                    "id": "stocks",
+                    "name": "S",
+                    "isin": "IE00BK5BQT80",
+                    "target_pct": 70,
+                    "ticker": "EUNL.DE",
+                },
+                {
+                    "id": "gold",
+                    "name": "G",
+                    "isin": "IE00B4ND3602",
+                    "target_pct": 15,
+                    "ticker": "4GLD.DE",
+                },
+                {
+                    "id": "bonds",
+                    "name": "B",
+                    "isin": "IE00B3F81409",
+                    "target_pct": 15,
+                    "ticker": "EUN4.DE",
+                },
+            ],
+        )
+        settings = Settings.model_validate(data)
+        assert all(a.ticker is not None for a in settings.assets)
+
+    def test_settings_valid_without_tickers(self) -> None:
+        data = _base_settings_data()
+        settings = Settings.model_validate(data)
+        assert all(a.ticker is None for a in settings.assets)

@@ -56,6 +56,10 @@ new-rule name:
 new-channel name:
     uv run python scripts/scaffold_channel.py {{ name }}
 
+# Scaffold a new backtest strategy
+new-strategy name:
+    uv run python scripts/scaffold_strategy.py {{ name }}
+
 # Validate pac.yaml configuration
 validate-config *args:
     uv run python scripts/validate_config.py {{ args }}
@@ -97,3 +101,12 @@ setup-telegram *args:
 # Register Telegram webhook (standalone, after setup-telegram + setup-gcp)
 setup-webhook *args:
     uv run python scripts/setup_telegram.py register-webhook {{ args }}
+# Backtester
+
+# Install backtester dependencies
+backtest-sync:
+    uv sync --group backtest
+
+# Run backtester (interactive mode by default; pass subcommand/flags for batch)
+backtest *args:
+    uv run python -m pac.backtester {{ args }}

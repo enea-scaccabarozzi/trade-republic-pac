@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [dependency-groups]
+backtest = ["yfinance>=1.2.0", "quantstats>=0.0.81", "questionary>=2.1.1"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -70,6 +71,22 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
+module = ["yfinance.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["quantstats.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["numpy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pandas.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["pytr.*"]
 ignore_missing_imports = true
 
@@ -86,7 +103,7 @@ module = ["uvicorn.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["telethon.*"]
+module = ["telethon.*", "questionary.*"]
 ignore_missing_imports = true
 
 [tool.semantic_release]

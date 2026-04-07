@@ -8,6 +8,30 @@ Do not edit manually.
 
 ## [Unreleased]
 
+### Added
+
+- Added `PacAlignmentStrategy` — blended PAC volume shift toward underweight assets using deviation-weighted redistribution
+- Added `CycleExploitStrategy` — hard rebalance triggered on cycle inversion signals, converting PAC cycles into full rebalance orders
+- Added end-to-end integration test for the backtester pipeline covering data → engine → metrics → results
+
+- Added interactive CLI for the backtester (`uv run python -m pac.backtester`) with `run`, `strategies`, `results`, and `show` subcommands
+- Added `just backtest` and `just backtest-sync` Justfile commands for running the backtester CLI
+- Added `typer[all]>=0.12` dev dependency and `questionary>=2.1.1` to the `backtest` dependency group
+- Added results persistence layer with `RunResult` model and `ResultStore` for saving/loading backtest runs as JSON to `.pac/backtests/{run_id}.json` (`src/pac/backtester/results/`)
+- Added frontend-agnostic JSON schema with equity curve (`EquityCurvePoint`), per-asset allocations (`AllocationPoint`), trade log (`TradeRecord`), and Monte Carlo confidence bands (`ConfidenceInterval`, `MetricValue`) embedded in `RunResult`
+- Added `SummaryStats` model capturing total invested, final value, fees, and trade counts with P5/median/P95 confidence intervals across MC iterations
+- Added metrics framework with quantstats integration and Monte Carlo aggregation (`src/pac/backtester/metrics/`)
+- Added benchmark comparison for passive buy-and-hold baseline
+- Added `BacktestStrategy` ABC with `Generic[ParamsT]` support, `StrategyRegistry`, and `discover_strategies()` auto-discovery (`src/pac/backtester/strategies/`)
+- Added simulation engine with `SimulationClock`, `SimulatedPortfolio`, and `BacktestSimulator` (`src/pac/backtester/engine/`)
+- Added `BacktestConfig` model for backtest run parameters (strategy, date range, PAC settings, Monte Carlo iterations, slippage)
+- Added Monte Carlo simulation with configurable slippage and deterministic seeding
+- Added action models: `PacAdjustment`, `HardRebalanceOrder`, `Action`, `ExecutedTrade` for strategy→simulator communication
+- Added `StrategyProtocol` interface for Phase 3 strategy integration
+- Added backtester data layer with `MarketDataProvider`, `PriceSeries`, `PriceBar`, `DataRequest` models and filesystem JSON caching (`src/pac/backtester/data/`)
+- Added optional `ticker` field to `AssetConfig` for ISIN→Yahoo Finance ticker mapping (required for backtesting)
+- Added `backtest` dependency group (`yfinance>=1.2.0`) — install with `uv sync --group backtest`
+
 ### Changed
 
 - Setup flow reordered: `just setup` now runs TR → Telegram → GCP (was TR → GCP → Telegram) to eliminate manual prompts for bot_token/chat_id during GCP deploy

@@ -22,16 +22,19 @@ assets:
   - id: stocks
     name: Stocks ETF
     isin: IE00BK5BQT80
+    ticker: "EUNL.DE"          # Yahoo Finance ticker (for backtesting)
     target_pct: 70
 
   - id: gold
     name: Gold ETC
     isin: IE00B4ND3602
+    ticker: "4GLD.DE"          # Yahoo Finance ticker (for backtesting)
     target_pct: 15
 
   - id: bonds
     name: Bond ETF
     isin: IE00B3F81409
+    ticker: "EUN4.DE"          # Yahoo Finance ticker (for backtesting)
     target_pct: 15
 
 # ─── Delivery channels ──────────────────────────────────
