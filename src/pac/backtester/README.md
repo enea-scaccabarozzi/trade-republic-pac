@@ -26,6 +26,7 @@ that translation.
 | Strategies | [`strategies/`](strategies/) | BacktestStrategy ABC + builtin strategies       |
 | Metrics    | [`metrics/`](metrics/)       | quantstats wrapper, benchmark comparison        |
 | Results    | [`results/`](results/)       | JSON persistence to `.pac/backtests/`           |
+| Dashboard  | [`dashboard/`](dashboard/)   | Interactive web UI for results exploration      |
 
 ## Architecture
 
@@ -53,11 +54,12 @@ BacktestSimulator
   │     1. Update prices from historical data
   │     2. Build PortfolioSnapshot (same model as live)
   │     3. Compute DeviationReport (reuse analysis.deviation)
-  │     4. Evaluate signal rules (reuse rules.registry)
-  │     5. Feed signals to strategy → get actions
-  │     6. Execute queued actions (with sampled slippage delay)
-  │     7. On PAC dates: execute PAC with current volumes
-  │     8. Record equity curve point + allocation snapshot
+  │     4. Construct BacktestMarketContext(prices, current_date)
+  │     5. Evaluate signal rules with market context (reuse rules.registry)
+  │     6. Feed signals to strategy → get actions
+  │     7. Execute queued actions (with sampled slippage delay)
+  │     8. On PAC dates: execute PAC with current volumes
+  │     9. Record equity curve point + allocation snapshot
   │
   ▼ after all iterations
 MetricsCalculator (quantstats per iteration → aggregate)
@@ -127,6 +129,18 @@ just backtest show <run-id>
 
 Results are saved to `.pac/backtests/{timestamp}_{strategy}.json`.
 
+## Proxy Tickers
+
+Assets can define `proxy_ticker` and `proxy_end` fields in `pac.yaml` (or a backtest-specific YAML like `backtest/pac-backtest.yaml`) for stitching pre-ETF data into longer backtests. This enables 30+ year validation periods for assets whose ETFs launched recently.
+
+| Asset  | Primary Ticker | Proxy Ticker | Proxy End  | Coverage     |
+| ------ | -------------- | ------------ | ---------- | ------------ |
+| Stocks | VWCE.DE        | ^GSPC        | 2019-07-22 | 1996–present |
+| Gold   | IGLN.L         | GC=F         | 2011-04-11 | 1996–present |
+| Bonds  | AGGH.L         | ^IRX         | 2017-11-06 | 1996–present |
+
+The data layer automatically stitches proxy and primary ticker data at the `proxy_end` date. See [`docs/crisis-indicators-research.md`](../../docs/crisis-indicators-research.md) Section 2 for proxy ticker validation and correlation analysis.
+
 ## Adding a New Strategy
 
 1. **Scaffold the skeleton:**
@@ -158,6 +172,23 @@ Results are saved to `.pac/backtests/{timestamp}_{strategy}.json`.
    ```
 
 Discovery is automatic — no registration step needed.
+
+### Dashboard
+
+Interactive web UI for exploring results, running backtests, and comparing runs.
+
+```bash
+# Install dashboard dependencies
+just dashboard-sync
+
+# Start the dashboard
+just dashboard
+
+# With options
+just dashboard --port 9000 --reload
+```
+
+See [`dashboard/README.md`](dashboard/README.md) for architecture and development details.
 
 ### Strategy Skeleton
 
@@ -196,6 +227,23 @@ class MyStrategy(BacktestStrategy[MyStrategyParams]):
         actions: list[Action] = []
         # Inspect signals and snapshot, emit actions
         return actions
+```
+
+## Crisis Exploitation Validation
+
+The `backtest/` directory contains configuration and tooling for validating crisis detection and exploitation strategies against 30 years of historical data:
+
+| File                                 | Purpose                                                         |
+| ------------------------------------ | --------------------------------------------------------------- |
+| `backtest/pac-backtest.yaml`         | 30-year config with proxy tickers and crisis signal definitions |
+| `backtest/ANALYSIS.md`               | Template for recording A/B comparison results                   |
+| `scripts/run_backtest_validation.py` | Automation for baseline vs crisis-aware scenarios (15 configs)  |
+
+Run the full validation suite:
+
+```bash
+uv run python scripts/run_backtest_validation.py         # full run
+uv run python scripts/run_backtest_validation.py --quick  # reduced iterations
 ```
 
 ## Configuration Reference

@@ -13,10 +13,16 @@ from pac.rules.discovery import discover_rules
 class TestDiscoverRules:
     def test_discovers_all_builtin_rules(self) -> None:
         rules = discover_rules()
-        assert len(rules) == 3
+        assert len(rules) == 9
         assert "threshold_deviation" in rules
         assert "cycle_inversion" in rules
         assert "pac_plan" in rules
+        assert "equity_drawdown" in rules
+        assert "gold_equity_divergence" in rules
+        assert "volatility_regime" in rules
+        assert "relative_strength" in rules
+        assert "death_cross" in rules
+        assert "crisis_composite" in rules
 
     def test_each_rule_has_params_model(self) -> None:
         rules = discover_rules()

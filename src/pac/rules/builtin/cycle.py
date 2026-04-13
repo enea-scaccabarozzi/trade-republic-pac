@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from itertools import combinations
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
@@ -10,11 +11,14 @@ from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal, SignalSeverity
 from pac.rules.base import SignalRule
 
+if TYPE_CHECKING:
+    from pac.market_context import MarketContext
+
 
 class CycleInversionParams(BaseModel):
     """Parameters for the cycle inversion detection rule."""
 
-    min_pct: Decimal = Field(default=Decimal("2.0"), ge=0)
+    min_pct: Decimal = Field(default=Decimal("3.0"), ge=0)
     warning_pct: Decimal = Field(default=Decimal("3.0"), ge=0)
     critical_pct: Decimal = Field(default=Decimal("5.0"), ge=0)
 
@@ -31,6 +35,7 @@ class CycleInversionRule(SignalRule[CycleInversionParams]):
         report: DeviationReport,
         snapshot: PortfolioSnapshot,
         params: CycleInversionParams,
+        market_ctx: MarketContext | None = None,
     ) -> list[Signal]:
         """Detect pairs of assets diverging in opposite directions.
 

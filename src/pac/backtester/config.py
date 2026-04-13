@@ -6,6 +6,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+VALID_METRICS: frozenset[str] = frozenset(
+    {"sortino", "calmar", "max_drawdown", "cagr", "sharpe", "volatility"}
+)
+
 
 class BacktestConfig(BaseModel, frozen=True):
     """Parameters for a single backtest run."""

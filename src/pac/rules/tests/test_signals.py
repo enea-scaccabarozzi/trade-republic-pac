@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pac.market_context import MarketContext
 
 import pytest
 from pydantic import BaseModel
@@ -68,6 +71,7 @@ class TestSignalRuleABC:
                 report: Any,
                 snapshot: Any,
                 params: _MyParams,
+                market_ctx: MarketContext | None = None,
             ) -> list[Signal]:
                 return []
 
@@ -84,6 +88,7 @@ class TestSignalRuleABC:
                 report: Any,
                 snapshot: Any,
                 params: Any,
+                market_ctx: MarketContext | None = None,
             ) -> list[Signal]:
                 return []
 
@@ -125,6 +130,7 @@ class TestSignalRegistry:
                 report: Any,
                 snapshot: Any,
                 params: Any,
+                market_ctx: MarketContext | None = None,
             ) -> list[Signal]:
                 return []
 

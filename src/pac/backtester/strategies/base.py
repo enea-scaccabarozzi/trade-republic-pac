@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, get_args
 
 from pydantic import BaseModel
 
+from pac.backtester.results.models import (
+    StrategyEvent,
+    StrategyEventKind,
+    StrategyEventMeta,
+)
 from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal
 
@@ -16,7 +21,12 @@ if TYPE_CHECKING:
 
 ParamsT = TypeVar("ParamsT", bound=BaseModel)
 
-__all__ = ["BacktestStrategy", "ParamsT", "_NoStrategyParams"]
+__all__ = [
+    "BacktestStrategy",
+    "ParamsT",
+    "StrategyEventKind",
+    "_NoStrategyParams",
+]
 
 
 class _NoStrategyParams(BaseModel):
@@ -57,9 +67,7 @@ class BacktestStrategy(ABC, Generic[ParamsT]):
         if not getattr(cls, "__abstractmethods__", frozenset()) and not isinstance(
             cls.__dict__.get("name"), str
         ):
-            msg = (
-                f"{cls.__name__} must define 'name' as a str class attribute"
-            )
+            msg = f"{cls.__name__} must define 'name' as a str class attribute"
             raise TypeError(msg)
 
     def __init__(self, params: ParamsT) -> None:
@@ -69,6 +77,39 @@ class BacktestStrategy(ABC, Generic[ParamsT]):
             params: Typed params instance validated by Pydantic.
         """
         self._params = params
+        self._event_buffer: list[StrategyEvent] = []
+
+    def reset(self) -> None:
+        """Reset any per-iteration state. Called before each MC iteration."""
+        self._event_buffer = []
+
+    def drain_events(self) -> list[StrategyEvent]:
+        """Pop all buffered events (called by simulator after each day)."""
+        events = self._event_buffer
+        self._event_buffer = []
+        return events
+
+    def _emit_event(
+        self,
+        event_type: str,
+        current_date: date,
+        details: dict[str, Any] | None = None,
+        end_date: date | None = None,
+    ) -> None:
+        """Helper for subclasses to emit strategy events."""
+        self._event_buffer.append(
+            StrategyEvent(
+                date=current_date,
+                event_type=event_type,
+                details=details or {},
+                end_date=end_date,
+            )
+        )
+
+    @classmethod
+    def event_meta(cls) -> list[StrategyEventMeta]:
+        """Declare event types this strategy emits. Default: empty."""
+        return []
 
     @abstractmethod
     def on_signals(

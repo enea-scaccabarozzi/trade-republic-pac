@@ -123,7 +123,9 @@ class TestExtractTrades:
             _make_pac_trade(date(2024, 1, 2), "stocks", 175.0),
         ]
         iteration = _make_iteration(
-            [10000, 10500], iteration=0, trades=trades,
+            [10000, 10500],
+            iteration=0,
+            trades=trades,
         )
         records = _extract_trades(iteration)
         for r in records:
@@ -138,7 +140,9 @@ class TestExtractTrades:
             _make_rebalance_trade(date(2024, 1, 5), "bonds"),
         ]
         iteration = _make_iteration(
-            [10000, 10500], iteration=0, trades=trades,
+            [10000, 10500],
+            iteration=0,
+            trades=trades,
         )
         records = _extract_trades(iteration)
         assert len(records) == len(trades)
@@ -156,7 +160,9 @@ class TestComputeSummary:
         config = _make_config()
         iterations = [
             _make_iteration(
-                [10000, 11000], iteration=0, trades=pac_trades,
+                [10000, 11000],
+                iteration=0,
+                trades=pac_trades,
             ),
         ]
         median_iter = iterations[0]
@@ -173,7 +179,9 @@ class TestComputeSummary:
         config = _make_config()
         iterations = [
             _make_iteration(
-                [10000, 10500], iteration=0, trades=pac_trades,
+                [10000, 10500],
+                iteration=0,
+                trades=pac_trades,
             ),
         ]
         summary = _compute_summary(iterations, iterations[0], config)
@@ -188,7 +196,9 @@ class TestComputeSummary:
         median_iter = _find_median_iteration(iterations)
         curve = _build_equity_curve(iterations)
         summary = _compute_summary(
-            iterations, median_iter, three_iteration_report.config,
+            iterations,
+            median_iter,
+            three_iteration_report.config,
         )
         assert abs(summary.final_value.median - curve[-1].median) < 0.01
 
@@ -199,7 +209,9 @@ class TestComputeSummary:
         iterations = three_iteration_report.strategy_iterations
         median_iter = _find_median_iteration(iterations)
         summary = _compute_summary(
-            iterations, median_iter, three_iteration_report.config,
+            iterations,
+            median_iter,
+            three_iteration_report.config,
         )
         assert summary.total_fees.p5 >= 0
         assert summary.total_fees.median >= 0
@@ -235,7 +247,8 @@ class TestBuildRunResult:
     ) -> None:
         result = build_run_result(three_iteration_report)
         assert re.fullmatch(
-            r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_\w+", result.run_id,
+            r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_\w+",
+            result.run_id,
         )
 
     def test_created_at_is_utc(

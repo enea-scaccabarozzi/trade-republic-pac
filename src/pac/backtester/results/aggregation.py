@@ -2,25 +2,36 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from pac.backtester.config import BacktestConfig
-from pac.backtester.engine.simulator import IterationResult
-from pac.backtester.metrics.models import BacktestReport, MetricSet
 from pac.backtester.results.models import (
     AllocationPoint,
     ConfidenceInterval,
     EquityCurvePoint,
+    IndicatorMeta,
+    IndicatorSeries,
     MetricValue,
     MonteCarloInfo,
     RunResult,
+    StrategyEventMeta,
     SummaryStats,
     TradeRecord,
 )
 
+if TYPE_CHECKING:
+    from pac.backtester.engine.simulator import IterationResult
+    from pac.backtester.metrics.models import BacktestReport, MetricSet
 
-def build_run_result(report: BacktestReport) -> RunResult:
+
+def build_run_result(
+    report: BacktestReport,
+    *,
+    indicator_meta: list[IndicatorMeta] | None = None,
+    strategy_event_meta: list[StrategyEventMeta] | None = None,
+) -> RunResult:
     """Convert a BacktestReport into a frontend-agnostic RunResult.
 
     Aggregation steps:
@@ -32,9 +43,12 @@ def build_run_result(report: BacktestReport) -> RunResult:
       5. Compute summary statistics (using median iteration for PAC counts)
       6. Map metric sets to the JSON schema format
       7. Generate run_id and created_at
+      8. Extract indicator, signal, and event data from median iteration
 
     Args:
         report: Complete backtest report from Phase 4.
+        indicator_meta: Indicator metadata from rules' indicator_specs().
+        strategy_event_meta: Strategy event metadata from strategy.event_meta().
 
     Returns:
         RunResult ready for JSON serialization.
@@ -50,6 +64,21 @@ def build_run_result(report: BacktestReport) -> RunResult:
     now = datetime.now(UTC)
     median_iter = _find_median_iteration(iterations)
 
+    # Extract enrichment data from median iteration
+    indicator_series = _build_indicator_series(
+        median_iter,
+        indicator_meta or [],
+    )
+    signal_log = list(median_iter.signal_log)
+    strategy_events = list(median_iter.strategy_events)
+
+    # Build benchmark equity curve if available
+    benchmark_equity_curve = (
+        _build_equity_curve(report.benchmark_iterations)
+        if report.benchmark_iterations
+        else None
+    )
+
     return RunResult(
         run_id=_generate_run_id(report.config.strategy, now),
         created_at=now,
@@ -63,7 +92,24 @@ def build_run_result(report: BacktestReport) -> RunResult:
         allocations=_build_allocations(iterations),
         trades=_extract_trades(median_iter),
         summary=_compute_summary(iterations, median_iter, report.config),
+        signal_log=signal_log,
+        indicator_series=indicator_series,
+        strategy_events=strategy_events,
+        strategy_event_meta=strategy_event_meta or [],
+        benchmark_equity_curve=benchmark_equity_curve,
     )
+
+
+def _build_indicator_series(
+    median_iter: IterationResult,
+    indicator_meta: list[IndicatorMeta],
+) -> list[IndicatorSeries]:
+    """Build indicator series from the median iteration's snapshots."""
+    snapshots = median_iter.indicator_snapshots
+    return [
+        IndicatorSeries(meta=meta, data=snapshots.get(meta.key, []))
+        for meta in indicator_meta
+    ]
 
 
 def _find_median_iteration(
@@ -188,30 +234,26 @@ def _compute_summary(
     """
     final_values = [float(it.final_value) for it in iterations]
 
-    fees_per_iter = [
-        sum(float(t.fee) for t in it.trades) for it in iterations
-    ]
+    fees_per_iter = [sum(float(t.fee) for t in it.trades) for it in iterations]
 
     trade_counts = [
-        sum(
-            1
-            for t in it.trades
-            if t.type == "hard_rebalance" and not t.skipped
-        )
+        sum(1 for t in it.trades if t.type == "hard_rebalance" and not t.skipped)
         for it in iterations
     ]
 
-    pac_trades = [
-        t for t in median_iter.trades if t.type == "pac_execution"
-    ]
+    pac_trades = [t for t in median_iter.trades if t.type == "pac_execution"]
     pac_count = len(pac_trades)
 
     contribution_per_pac = config.monthly_contribution / Decimal(
         len(config.pac_execution_days),
     )
-    total_invested = float(config.initial_cash) + float(
-        contribution_per_pac,
-    ) * pac_count
+    total_invested = (
+        float(config.initial_cash)
+        + float(
+            contribution_per_pac,
+        )
+        * pac_count
+    )
 
     return SummaryStats(
         total_invested=total_invested,
@@ -246,14 +288,22 @@ def _map_metrics(
     result: dict[str, dict[str, MetricValue]] = {}
 
     result["strategy"] = {
-        name: MetricValue(p5=mr.p5, median=mr.median, p95=mr.p95)
+        name: MetricValue(
+            p5=mr.p5,
+            median=mr.median,
+            p95=mr.p95,
+            distribution=mr.per_iteration,
+        )
         for name, mr in strategy.metrics.items()
     }
 
     if benchmark is not None:
         result["benchmark"] = {
             name: MetricValue(
-                p5=mr.median, median=mr.median, p95=mr.median,
+                p5=mr.median,
+                median=mr.median,
+                p95=mr.median,
+                distribution=mr.per_iteration,
             )
             for name, mr in benchmark.metrics.items()
         }

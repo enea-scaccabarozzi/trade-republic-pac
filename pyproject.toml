@@ -18,7 +18,14 @@ dependencies = [
 ]
 
 [dependency-groups]
-backtest = ["yfinance>=1.2.0", "quantstats>=0.0.81", "questionary>=2.1.1"]
+backtest = [
+    "yfinance>=1.2.0",
+    "quantstats>=0.0.81",
+    "questionary>=2.1.1",
+    "plotext>=5.2",
+]
+dashboard = ["fastapi>=0.115", "sse-starlette>=2.0"]
+research = ["matplotlib>=3.8"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -59,11 +66,13 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 plugins = ["pydantic.mypy"]
+exclude = ["dashboard\\.legacy"]
 
 [tool.pytest.ini_options]
 testpaths = ["src", "tests"]
 asyncio_mode = "auto"
 timeout = 30
+addopts = "--ignore-glob=**/dashboard.legacy/**"
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
@@ -91,7 +100,27 @@ module = ["pytr.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["sse_starlette.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["curl_cffi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["plotext.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["matplotlib.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["nicegui.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["plotly.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -104,6 +133,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["telethon.*", "questionary.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pac.backtester.dashboard.*"]
 ignore_missing_imports = true
 
 [tool.semantic_release]

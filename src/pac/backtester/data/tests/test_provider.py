@@ -8,8 +8,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pac.backtester.data.models import DataRequest, Interval, PriceSeries
-from pac.backtester.data.provider import MarketDataProvider, resolve_tickers
+from pac.backtester.data.models import DataRequest, Interval, PriceBar, PriceSeries
+from pac.backtester.data.provider import (
+    MarketDataProvider,
+    normalize_and_stitch,
+    resolve_tickers,
+    validate_handoff,
+)
 from pac.config.models import Settings
 
 
@@ -349,3 +354,389 @@ class TestResolveTickers:
         )
         with pytest.raises(ValueError, match=r"gold.*bonds"):
             resolve_tickers(settings)
+
+
+# ─── Helper for new tests ──────────────────────────────────
+
+
+def _bar(d: date, close: Decimal) -> PriceBar:
+    return PriceBar(
+        date=d,
+        open=close,
+        high=close,
+        low=close,
+        close=close,
+        volume=1000,
+    )
+
+
+# ─── TestNormalizeAndStitch ─────────────────────────────────
+
+
+class TestNormalizeAndStitch:
+    def test_happy_path_scales_proxy(self) -> None:
+        """Proxy at ~400, primary at ~40 → proxy scaled down by 10x."""
+        handoff = date(2020, 6, 15)
+        proxy = [
+            _bar(date(2020, 6, 12), Decimal("380")),
+            _bar(date(2020, 6, 15), Decimal("400")),
+        ]
+        primary = [
+            _bar(date(2020, 6, 16), Decimal("40")),
+            _bar(date(2020, 6, 17), Decimal("41")),
+        ]
+
+        result = normalize_and_stitch(primary, proxy, handoff)
+
+        assert len(result) == 4
+        # ratio = 40/400 = 0.1
+        assert result[0].close == Decimal("380") * Decimal("40") / Decimal("400")
+        assert result[1].close == Decimal("40")  # last proxy scaled to match
+        assert result[2].close == Decimal("40")  # first primary unchanged
+        assert result[3].close == Decimal("41")
+
+    def test_equal_prices_no_scaling(self) -> None:
+        """When proxy and primary match in price, ratio = 1.0."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 15), Decimal("100"))]
+        primary = [_bar(date(2020, 6, 16), Decimal("100"))]
+
+        result = normalize_and_stitch(primary, proxy, handoff)
+
+        assert len(result) == 2
+        assert result[0].close == Decimal("100")
+        assert result[1].close == Decimal("100")
+
+    def test_empty_proxy_returns_primary_only(self) -> None:
+        """Empty proxy bars → returns primary bars only."""
+        handoff = date(2020, 6, 15)
+        primary = [_bar(date(2020, 6, 16), Decimal("50"))]
+
+        result = normalize_and_stitch(primary, [], handoff)
+
+        assert len(result) == 1
+        assert result[0].close == Decimal("50")
+
+    def test_empty_primary_returns_proxy_only(self) -> None:
+        """Empty primary bars → returns proxy bars (no scaling possible)."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 15), Decimal("400"))]
+
+        result = normalize_and_stitch([], proxy, handoff)
+
+        assert len(result) == 1
+        assert result[0].close == Decimal("400")
+
+    def test_zero_proxy_close_raises(self) -> None:
+        """Zero proxy close price raises ValueError."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 15), Decimal("0"))]
+        primary = [_bar(date(2020, 6, 16), Decimal("50"))]
+
+        with pytest.raises(ValueError, match="Proxy close price is 0"):
+            normalize_and_stitch(primary, proxy, handoff)
+
+
+# ─── TestValidateHandoff ────────────────────────────────────
+
+
+class TestValidateHandoff:
+    def test_valid_handoff_small_gap(self) -> None:
+        """Gap ≤ 5 calendar days → no error."""
+        handoff = date(2020, 6, 15)  # Monday
+        proxy = [_bar(date(2020, 6, 15), Decimal("100"))]
+        primary = [_bar(date(2020, 6, 16), Decimal("100"))]
+
+        # Should not raise
+        validate_handoff(proxy, primary, handoff, "PROXY", "PRIMARY")
+
+    def test_weekend_gap_ok(self) -> None:
+        """Weekend gap (2 calendar days) → no error."""
+        handoff = date(2020, 6, 12)  # Friday
+        proxy = [_bar(date(2020, 6, 12), Decimal("100"))]
+        primary = [_bar(date(2020, 6, 15), Decimal("100"))]  # Monday
+
+        validate_handoff(proxy, primary, handoff, "PROXY", "PRIMARY")
+
+    def test_gap_exceeds_limit_raises(self) -> None:
+        """Gap > 5 days → raises ValueError."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 15), Decimal("100"))]
+        primary = [_bar(date(2020, 6, 25), Decimal("100"))]  # 10 days gap
+
+        with pytest.raises(ValueError, match="Data gap of 10 days"):
+            validate_handoff(proxy, primary, handoff, "PROXY", "PRIMARY")
+
+    def test_no_proxy_data_before_handoff_raises(self) -> None:
+        """No proxy data on or before handoff → raises ValueError."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 20), Decimal("100"))]  # after handoff
+        primary = [_bar(date(2020, 6, 16), Decimal("100"))]
+
+        with pytest.raises(ValueError, match="No proxy data"):
+            validate_handoff(proxy, primary, handoff, "PROXY", "PRIMARY")
+
+    def test_no_primary_data_after_handoff_raises(self) -> None:
+        """No primary data after handoff → raises ValueError."""
+        handoff = date(2020, 6, 15)
+        proxy = [_bar(date(2020, 6, 15), Decimal("100"))]
+        primary = [_bar(date(2020, 6, 10), Decimal("100"))]  # before handoff
+
+        with pytest.raises(ValueError, match="No primary data"):
+            validate_handoff(proxy, primary, handoff, "PROXY", "PRIMARY")
+
+
+# ─── TestFetchWithProxyChain ────────────────────────────────
+
+
+class TestFetchWithProxyChain:
+    """Tests for fetch_with_proxy with both legacy and chain proxy support."""
+
+    def _make_provider(
+        self,
+        tmp_path: Path,
+        responses: dict[str, list[PriceBar]],
+    ) -> MarketDataProvider:
+        """Build a provider with a mocked fetch method."""
+        from unittest.mock import MagicMock
+
+        with patch("pac.backtester.data.provider.yf", MagicMock()):
+            provider = MarketDataProvider(cache_dir=tmp_path)
+
+        def _mock_fetch(req: DataRequest) -> PriceSeries:
+            bars = responses.get(req.ticker, [])
+            filtered = [b for b in bars if req.start <= b.date <= req.end]
+            if not filtered:
+                msg = f"No data returned for {req.ticker}"
+                raise ValueError(msg)
+            return PriceSeries(
+                ticker=req.ticker,
+                interval=Interval.DAILY,
+                bars=filtered,
+            )
+
+        provider.fetch = _mock_fetch  # type: ignore[assignment]
+        return provider
+
+    def test_single_proxy_legacy_compat(self, tmp_path: Path) -> None:
+        """Legacy proxy_ticker/proxy_end still works."""
+        proxy_bars = [
+            _bar(date(2020, 6, 12), Decimal("400")),
+            _bar(date(2020, 6, 15), Decimal("402")),
+        ]
+        primary_bars = [
+            _bar(date(2020, 6, 16), Decimal("40")),
+            _bar(date(2020, 6, 17), Decimal("41")),
+        ]
+        provider = self._make_provider(
+            tmp_path,
+            {"PROXY": proxy_bars, "PRIMARY": primary_bars},
+        )
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2020, 6, 12),
+            end=date(2020, 6, 17),
+            proxy_ticker="PROXY",
+            proxy_end=date(2020, 6, 15),
+        )
+
+        assert len(result) == 4
+        # Proxy bars should be normalized
+        assert result.bars[-1].close == Decimal("41")
+
+    def test_two_segment_chain(self, tmp_path: Path) -> None:
+        """Two proxy segments + primary."""
+        from pac.config.models import ProxySpec
+
+        p1 = [
+            _bar(date(2005, 1, 3), Decimal("100")),
+            _bar(date(2005, 1, 4), Decimal("101")),
+        ]
+        p2 = [
+            _bar(date(2005, 1, 5), Decimal("50")),
+            _bar(date(2005, 1, 6), Decimal("51")),
+        ]
+        primary = [
+            _bar(date(2005, 1, 7), Decimal("200")),
+            _bar(date(2005, 1, 10), Decimal("202")),
+        ]
+        provider = self._make_provider(
+            tmp_path,
+            {"P1": p1, "P2": p2, "PRIMARY": primary},
+        )
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2005, 1, 3),
+            end=date(2005, 1, 10),
+            proxy_chain=[
+                ProxySpec(ticker="P1", end=date(2005, 1, 4)),
+                ProxySpec(ticker="P2", end=date(2005, 1, 6)),
+            ],
+        )
+
+        assert len(result) == 6
+        # Primary bars unchanged
+        assert result.bars[-2].close == Decimal("200")
+        assert result.bars[-1].close == Decimal("202")
+        # Price should be continuous at boundaries (no big jumps)
+        for i in range(1, len(result.bars)):
+            prev = float(result.bars[i - 1].close)
+            curr = float(result.bars[i].close)
+            ret = abs(curr / prev - 1)
+            assert ret < 0.15, f"Return too large at {result.bars[i].date}: {ret}"
+
+    def test_no_proxy_chain_direct_fetch(self, tmp_path: Path) -> None:
+        """No proxy chain → direct fetch."""
+        bars = [
+            _bar(date(2024, 1, 2), Decimal("100")),
+            _bar(date(2024, 1, 3), Decimal("101")),
+        ]
+        provider = self._make_provider(tmp_path, {"T": bars})
+
+        result = provider.fetch_with_proxy(
+            ticker="T",
+            start=date(2024, 1, 2),
+            end=date(2024, 1, 3),
+        )
+
+        assert len(result) == 2
+        assert result.bars[0].close == Decimal("100")
+
+    def test_start_after_all_proxies(self, tmp_path: Path) -> None:
+        """Start date after all proxies → primary only."""
+        from pac.config.models import ProxySpec
+
+        primary = [
+            _bar(date(2024, 1, 2), Decimal("100")),
+            _bar(date(2024, 1, 3), Decimal("101")),
+        ]
+        provider = self._make_provider(tmp_path, {"PRIMARY": primary, "PROXY": []})
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2024, 1, 2),
+            end=date(2024, 1, 3),
+            proxy_chain=[
+                ProxySpec(ticker="PROXY", end=date(2020, 1, 1)),
+            ],
+        )
+
+        assert len(result) == 2
+        assert result.bars[0].close == Decimal("100")
+
+    def test_end_before_primary(self, tmp_path: Path) -> None:
+        """End date within proxy period → proxy only."""
+        from pac.config.models import ProxySpec
+
+        proxy_bars = [
+            _bar(date(2005, 1, 3), Decimal("100")),
+            _bar(date(2005, 1, 4), Decimal("101")),
+        ]
+        provider = self._make_provider(tmp_path, {"PROXY": proxy_bars})
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2005, 1, 3),
+            end=date(2005, 1, 4),
+            proxy_chain=[
+                ProxySpec(ticker="PROXY", end=date(2010, 1, 1)),
+            ],
+        )
+
+        assert len(result) == 2
+
+    def test_fx_conversion_applied(self, tmp_path: Path) -> None:
+        """FX conversion applied to USD proxy segments."""
+        from pac.config.models import ProxySpec
+
+        proxy_bars = [
+            _bar(date(2005, 1, 3), Decimal("100")),
+            _bar(date(2005, 1, 4), Decimal("101")),
+        ]
+        primary_bars = [
+            _bar(date(2005, 1, 5), Decimal("80")),
+            _bar(date(2005, 1, 6), Decimal("81")),
+        ]
+        fx_bars = [
+            _bar(date(2005, 1, 3), Decimal("1.20")),
+            _bar(date(2005, 1, 4), Decimal("1.20")),
+        ]
+        provider = self._make_provider(
+            tmp_path,
+            {
+                "PROXY": proxy_bars,
+                "PRIMARY": primary_bars,
+                "EURUSD=X": fx_bars,
+            },
+        )
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2005, 1, 3),
+            end=date(2005, 1, 6),
+            proxy_chain=[
+                ProxySpec(
+                    ticker="PROXY",
+                    end=date(2005, 1, 4),
+                    currency="USD",
+                ),
+            ],
+        )
+
+        assert len(result) == 4
+        # Primary bars unchanged (no currency set on primary)
+        assert result.bars[-1].close == Decimal("81")
+
+
+# ─── TestStitchBoundaryReturns ──────────────────────────────
+
+
+class TestStitchBoundaryReturns:
+    def test_no_large_returns_at_boundary(self, tmp_path: Path) -> None:
+        """No daily return > 15% at any stitch boundary."""
+        from pac.config.models import ProxySpec
+
+        # 3 segments at very different price levels
+        p1 = [_bar(date(2005, 1, i), Decimal(str(400 + i))) for i in range(3, 6)]
+        p2 = [_bar(date(2005, 1, i), Decimal(str(40 + i))) for i in range(6, 8)]
+        primary = [_bar(date(2005, 1, i), Decimal(str(200 + i))) for i in range(10, 13)]
+
+        with patch("pac.backtester.data.provider.yf", MagicMock()):
+            provider = MarketDataProvider(cache_dir=tmp_path)
+
+        def _mock_fetch(req: DataRequest) -> PriceSeries:
+            mapping: dict[str, list[PriceBar]] = {
+                "P1": p1,
+                "P2": p2,
+                "PRIMARY": primary,
+            }
+            bars = mapping.get(req.ticker, [])
+            filtered = [b for b in bars if req.start <= b.date <= req.end]
+            if not filtered:
+                msg = f"No data for {req.ticker}"
+                raise ValueError(msg)
+            return PriceSeries(
+                ticker=req.ticker, interval=Interval.DAILY, bars=filtered
+            )
+
+        provider.fetch = _mock_fetch  # type: ignore[assignment]
+
+        result = provider.fetch_with_proxy(
+            ticker="PRIMARY",
+            start=date(2005, 1, 3),
+            end=date(2005, 1, 12),
+            proxy_chain=[
+                ProxySpec(ticker="P1", end=date(2005, 1, 5)),
+                ProxySpec(ticker="P2", end=date(2005, 1, 7)),
+            ],
+        )
+
+        for i in range(1, len(result.bars)):
+            prev = float(result.bars[i - 1].close)
+            curr = float(result.bars[i].close)
+            daily_ret = abs(curr / prev - 1)
+            assert daily_ret < 0.15, (
+                f"Large return {daily_ret:.2%} at {result.bars[i].date}"
+            )

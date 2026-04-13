@@ -50,6 +50,7 @@ class Orchestrator:
         channels: dict[str, DeliveryChannel[Any]],
         template_engine: TemplateEngine,
         adapters: dict[str, FormatAdapter],
+        market_ctx_enabled: bool = False,
     ) -> None:
         self._settings = settings
         self._registry = registry
@@ -57,6 +58,10 @@ class Orchestrator:
         self._engine = template_engine
         self._adapters = adapters
         self._signal_map: dict[str, Any] = {sig.name: sig for sig in settings.signals}
+        self._market_ctx_enabled = market_ctx_enabled
+        self._ticker_map: dict[str, str] = {
+            a.id: a.ticker for a in settings.assets if a.ticker
+        }
 
     @classmethod
     def from_settings(cls, settings: Settings) -> Orchestrator:
@@ -120,12 +125,21 @@ class Orchestrator:
                     )
                     raise ValueError(msg)
 
+        # 7. Probe yfinance availability (no network calls)
+        market_ctx_enabled = False
+        try:
+            importlib.import_module("yfinance")
+            market_ctx_enabled = True
+        except ImportError:
+            pass
+
         return cls(
             settings=settings,
             registry=registry,
             channels=channels,
             template_engine=template_engine,
             adapters=adapters,
+            market_ctx_enabled=market_ctx_enabled,
         )
 
     async def start(self) -> None:
@@ -142,6 +156,14 @@ class Orchestrator:
             logger.info("channel_stopping", channel=name)
             await channel.stop()
             logger.info("channel_stopped", channel=name)
+
+    def _build_market_ctx(self) -> Any:
+        """Build a LiveMarketContext if yfinance is available, else None."""
+        if not self._market_ctx_enabled:
+            return None
+        from pac.live_market_context import LiveMarketContext
+
+        return LiveMarketContext(ticker_map=self._ticker_map)
 
     async def dispatch_signal(self, signal_name: str) -> DispatchResult:
         """Full pipeline: evaluate signal → render template → send.
@@ -167,11 +189,13 @@ class Orchestrator:
         report = calculate_deviations(snapshot, self._settings)
 
         # 3. Evaluate rule with typed params
+        market_ctx = self._build_market_ctx()
         signals = self._registry.evaluate_signal(
             sig_config.rule,
             sig_config.params,
             report,
             snapshot,
+            market_ctx=market_ctx,
         )
 
         if not signals:
@@ -230,12 +254,30 @@ class Orchestrator:
             snapshot = await tr.get_portfolio()
 
         report = calculate_deviations(snapshot, self._settings)
+        market_ctx = self._build_market_ctx()
         return self._registry.evaluate_signal(
             sig_config.rule,
             sig_config.params,
             report,
             snapshot,
+            market_ctx=market_ctx,
         )
+
+    async def evaluate_all_signals(
+        self,
+    ) -> tuple[list[Signal], PortfolioSnapshot, DeviationReport]:
+        """Evaluate ALL configured signals and return results.
+
+        Used by interactive handlers (e.g., Telegram /rebalance) that
+        manage their own response rendering.
+        """
+        async with tr_session(self._settings) as tr:
+            snapshot = await tr.get_portfolio()
+
+        report = calculate_deviations(snapshot, self._settings)
+        market_ctx = self._build_market_ctx()
+        signals = self._registry.evaluate_all(report, snapshot, market_ctx=market_ctx)
+        return signals, snapshot, report
 
     async def get_portfolio_status(
         self,

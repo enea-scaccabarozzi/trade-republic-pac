@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
@@ -29,6 +30,20 @@ class BrokerConfig(BaseModel):
     cookies_path: str = "/tmp/tr_cookies"
 
 
+class ProxySpec(BaseModel):
+    """Single proxy segment in a chain."""
+
+    ticker: str = Field(description="Yahoo Finance ticker for this proxy segment")
+    end: date = Field(description="Last date (inclusive) to use this proxy's data")
+    currency: str | None = Field(
+        default=None,
+        description=(
+            "ISO 4217 currency code (e.g. 'USD', 'GBP'). "
+            "If set, FX conversion to EUR is applied."
+        ),
+    )
+
+
 class AssetConfig(BaseModel):
     """Single asset definition for portfolio tracking."""
 
@@ -42,6 +57,55 @@ class AssetConfig(BaseModel):
             "Yahoo Finance ticker symbol (e.g. 'EUNL.DE'). Required for backtesting."
         ),
     )
+    proxy_ticker: str | None = Field(
+        default=None,
+        description="Proxy ticker for backtesting before the primary ETF existed",
+    )
+    proxy_end: date | None = Field(
+        default=None,
+        description="Last date to use proxy data (primary takes over after this)",
+    )
+    proxy_chain: list[ProxySpec] = Field(
+        default_factory=list,
+        description=(
+            "Ordered list of proxy segments (oldest first). "
+            "Each covers [start, spec.end]; primary ticker takes over after "
+            "last spec.end."
+        ),
+    )
+    currency: str | None = Field(
+        default=None,
+        description=(
+            "Currency of primary ticker. If set and not EUR, FX conversion applied."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_proxy_fields(self) -> AssetConfig:
+        if self.proxy_end and not self.proxy_ticker:
+            msg = f"Asset '{self.id}': proxy_end requires proxy_ticker"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def _migrate_legacy_proxy(self) -> AssetConfig:
+        """Convert legacy proxy_ticker/proxy_end to proxy_chain."""
+        if self.proxy_ticker and self.proxy_end and not self.proxy_chain:
+            self.proxy_chain = [ProxySpec(ticker=self.proxy_ticker, end=self.proxy_end)]
+        return self
+
+    @model_validator(mode="after")
+    def _check_proxy_chain_order(self) -> AssetConfig:
+        for i in range(1, len(self.proxy_chain)):
+            if self.proxy_chain[i].end <= self.proxy_chain[i - 1].end:
+                msg = (
+                    f"Asset '{self.id}': proxy_chain must be ordered "
+                    f"chronologically. Segment {i} end "
+                    f"({self.proxy_chain[i].end}) <= segment {i - 1} end "
+                    f"({self.proxy_chain[i - 1].end})"
+                )
+                raise ValueError(msg)
+        return self
 
 
 class SignalConfig(BaseModel):

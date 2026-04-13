@@ -99,8 +99,7 @@ class PacAlignmentStrategy(BacktestStrategy[PacAlignmentParams]):
         if total_target == Decimal("0"):
             return None
         target_w: dict[str, Decimal] = {
-            aid: dev.target_pct / total_target
-            for aid, dev in report.deviations.items()
+            aid: dev.target_pct / total_target for aid, dev in report.deviations.items()
         }
 
         # Step 5: normalized deficit weights

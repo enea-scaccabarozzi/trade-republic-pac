@@ -28,7 +28,8 @@ Feature: Backtest Strategy Framework
     When the builtin strategies package is scanned
     Then "pac_alignment" is in the discovered strategies
     And "cycle_exploit" is in the discovered strategies
-    And exactly 2 strategies are discovered
+    And "crisis_exploit" is in the discovered strategies
+    And exactly 3 strategies are discovered
 
   Scenario: Strategy registry instantiates with validated params
     Given a registered strategy "simple" with params model

@@ -245,7 +245,6 @@ def _run_first_pac(ctx: dict[str, Any]) -> None:
     for d in clock:
         pac_day = clock.which_pac_day(d)
         if pac_day is not None and d in prices:
-
             price_dict = {"stocks": prices[d], "gold": prices[d], "bonds": prices[d]}
             portfolio.execute_pac(d, price_dict, Decimal("500"), pac_day)
             break

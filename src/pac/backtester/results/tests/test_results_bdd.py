@@ -184,9 +184,7 @@ def _then_total_invested(ctx: dict[str, Any]) -> None:
     result: RunResult = ctx["result"]
     config = result.config
     # PAC trades from median iteration
-    pac_count = len([
-        t for t in result.trades if t.type == "pac_execution"
-    ])
+    pac_count = len([t for t in result.trades if t.type == "pac_execution"])
     contribution_per_pac = float(
         config.monthly_contribution / Decimal(len(config.pac_execution_days)),
     )

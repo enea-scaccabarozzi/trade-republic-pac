@@ -82,10 +82,11 @@ def stocks_over_bonds_under() -> PortfolioSnapshot:
 
 
 @given(
-    "all deviations are below 2pp",
+    "all deviations are below 3pp",
     target_fixture="snapshot",
 )
 def small_deviations() -> PortfolioSnapshot:
+    # stocks at 71% (+1pp), gold at 15% (0pp), bonds at 14% (-1pp)
     return _snapshot(Decimal("7100"), Decimal("1500"), Decimal("1400"))
 
 
@@ -95,6 +96,24 @@ def small_deviations() -> PortfolioSnapshot:
 )
 def small_opposing() -> PortfolioSnapshot:
     return _snapshot(Decimal("7150"), Decimal("1500"), Decimal("1350"))
+
+
+@given(
+    "deviations of 3pp in opposing directions",
+    target_fixture="snapshot",
+)
+def opposing_at_3pp() -> PortfolioSnapshot:
+    # stocks at 73% (+3pp over 70% target), bonds at 12% (-3pp under 15% target)
+    return _snapshot(Decimal("7300"), Decimal("1500"), Decimal("1200"))
+
+
+@given(
+    "deviations of 2.5pp in opposing directions",
+    target_fixture="snapshot",
+)
+def opposing_at_2_5pp() -> PortfolioSnapshot:
+    # stocks at 72.5% (+2.5pp over 70% target), bonds at 12.5% (-2.5pp under 15% target)
+    return _snapshot(Decimal("7250"), Decimal("1500"), Decimal("1250"))
 
 
 @when(

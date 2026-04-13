@@ -23,7 +23,9 @@ def sample_result(three_iteration_report: BacktestReport) -> RunResult:
 
 class TestSave:
     def test_creates_directory_and_file(
-        self, tmp_path: Path, sample_result: RunResult,
+        self,
+        tmp_path: Path,
+        sample_result: RunResult,
     ) -> None:
         sub = tmp_path / "nested" / "dir"
         store = ResultStore(base_dir=sub)
@@ -32,13 +34,17 @@ class TestSave:
         assert path.parent == sub
 
     def test_returns_path(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         path = store.save(sample_result)
         assert path.name == f"{sample_result.run_id}.json"
 
     def test_json_is_valid(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         path = store.save(sample_result)
         data = json.loads(path.read_text())
@@ -46,7 +52,9 @@ class TestSave:
         assert "run_id" in data
 
     def test_overwrites_existing(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         store.save(sample_result)
         store.save(sample_result)  # no error
@@ -56,7 +64,9 @@ class TestSave:
 
 class TestLoad:
     def test_round_trip(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         store.save(sample_result)
         loaded = store.load(sample_result.run_id)
@@ -67,7 +77,8 @@ class TestLoad:
             store.load("nonexistent-run-id")
 
     def test_validates_run_id_path_traversal(
-        self, store: ResultStore,
+        self,
+        store: ResultStore,
     ) -> None:
         with pytest.raises(ValueError, match="Invalid run_id"):
             store.load("../../etc/passwd")
@@ -77,7 +88,9 @@ class TestLoad:
             store.load("run id with spaces!")
 
     def test_corrupt_json_raises(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         store.save(sample_result)
         path = store._base_dir / f"{sample_result.run_id}.json"
@@ -130,7 +143,9 @@ class TestListRuns:
 
 class TestDelete:
     def test_removes_file(
-        self, store: ResultStore, sample_result: RunResult,
+        self,
+        store: ResultStore,
+        sample_result: RunResult,
     ) -> None:
         store.save(sample_result)
         store.delete(sample_result.run_id)
@@ -142,7 +157,8 @@ class TestDelete:
             store.delete("nonexistent-run-id")
 
     def test_validates_run_id_path_traversal(
-        self, store: ResultStore,
+        self,
+        store: ResultStore,
     ) -> None:
         with pytest.raises(ValueError, match="Invalid run_id"):
             store.delete("../../../important")

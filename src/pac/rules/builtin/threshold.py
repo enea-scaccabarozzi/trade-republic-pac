@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,9 @@ from pac.analysis.deviation import DeviationReport
 from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal, SignalSeverity
 from pac.rules.base import SignalRule
+
+if TYPE_CHECKING:
+    from pac.market_context import MarketContext
 
 
 class ThresholdParams(BaseModel):
@@ -30,6 +33,7 @@ class ThresholdDeviationRule(SignalRule[ThresholdParams]):
         report: DeviationReport,
         snapshot: PortfolioSnapshot,
         params: ThresholdParams,
+        market_ctx: MarketContext | None = None,
     ) -> list[Signal]:
         """Emit a signal for each asset exceeding its deviation threshold.
 

@@ -35,7 +35,10 @@ def _make_run_result() -> RunResult:
         },
         equity_curve=[
             EquityCurvePoint(
-                date=date(2024, 1, 2), p5=9800.0, median=10000.0, p95=10200.0,
+                date=date(2024, 1, 2),
+                p5=9800.0,
+                median=10000.0,
+                p95=10200.0,
             ),
         ],
         allocations=[
@@ -43,10 +46,14 @@ def _make_run_result() -> RunResult:
                 date=date(2024, 1, 2),
                 assets={
                     "stocks": ConfidenceInterval(
-                        p5=68.0, median=70.0, p95=72.0,
+                        p5=68.0,
+                        median=70.0,
+                        p95=72.0,
                     ),
                     "cash": ConfidenceInterval(
-                        p5=0.0, median=0.0, p95=0.0,
+                        p5=0.0,
+                        median=0.0,
+                        p95=0.0,
                     ),
                 },
             ),
@@ -66,7 +73,9 @@ def _make_run_result() -> RunResult:
         summary=SummaryStats(
             total_invested=11000.0,
             final_value=ConfidenceInterval(
-                p5=10500.0, median=11000.0, p95=11800.0,
+                p5=10500.0,
+                median=11000.0,
+                p95=11800.0,
             ),
             total_fees=ConfidenceInterval(p5=1.0, median=2.0, p95=3.0),
             total_trades=ConfidenceInterval(p5=1.0, median=1.0, p95=2.0),
@@ -89,7 +98,10 @@ class TestRunResultRoundTrip:
 
     def test_equity_curve_point_date_serialized(self) -> None:
         point = EquityCurvePoint(
-            date=date(2024, 1, 2), p5=100.0, median=110.0, p95=120.0,
+            date=date(2024, 1, 2),
+            p5=100.0,
+            median=110.0,
+            p95=120.0,
         )
         data = point.model_dump(mode="json")
         assert data["date"] == "2024-01-02"
@@ -102,7 +114,7 @@ class TestRunResultRoundTrip:
 
         for mv in [strategy_mv, bench_mv]:
             data = mv.model_dump(mode="json")
-            assert set(data.keys()) == {"p5", "median", "p95"}
+            assert set(data.keys()) == {"p5", "median", "p95", "distribution"}
 
     def test_trade_record_from_executed_trade(self) -> None:
         et = ExecutedTrade(

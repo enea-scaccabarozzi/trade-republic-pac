@@ -55,9 +55,7 @@ def _make_mock_result(run_id: str = "2020-01-01T00-00-00Z_pac_alignment") -> Run
         trades=[],
         summary=SummaryStats(
             total_invested=10000.0,
-            final_value=ConfidenceInterval(
-                p5=9000.0, median=11000.0, p95=12000.0
-            ),
+            final_value=ConfidenceInterval(p5=9000.0, median=11000.0, p95=12000.0),
             total_fees=ConfidenceInterval(p5=0.0, median=5.0, p95=10.0),
             total_trades=ConfidenceInterval(p5=0.0, median=3.0, p95=6.0),
             total_pac_executions=24,
@@ -110,18 +108,24 @@ _COMMAND_ARGS_MAP = {
         "run",
         [
             "run",
-            "--strategy", "pac_alignment",
-            "--start", "2020-01-01",
-            "--end", "2021-12-31",
+            "--strategy",
+            "pac_alignment",
+            "--start",
+            "2020-01-01",
+            "--end",
+            "2021-12-31",
         ],
     ),
     "python -m pac.backtester run --strategy nonexistent --start 2020-01-01 --end 2021-12-31": (  # noqa: E501
         "run_nonexistent",
         [
             "run",
-            "--strategy", "nonexistent",
-            "--start", "2020-01-01",
-            "--end", "2021-12-31",
+            "--strategy",
+            "nonexistent",
+            "--start",
+            "2020-01-01",
+            "--end",
+            "2021-12-31",
         ],
     ),
     "python -m pac.backtester strategies": (
@@ -143,7 +147,9 @@ _COMMAND_ARGS_MAP = {
 }
 
 
-@when('I run "python -m pac.backtester run --strategy pac_alignment --start 2020-01-01 --end 2021-12-31"')  # noqa: E501
+@when(
+    'I run "python -m pac.backtester run --strategy pac_alignment --start 2020-01-01 --end 2021-12-31"'  # noqa: E501
+)
 def _when_run_valid(ctx: dict[str, Any], tmp_path: Path) -> None:
     mock_result = _make_mock_result()
     save_path = tmp_path / "result.json"
@@ -156,31 +162,39 @@ def _when_run_valid(ctx: dict[str, Any], tmp_path: Path) -> None:
             app,
             [
                 "run",
-                "--strategy", "pac_alignment",
-                "--start", "2020-01-01",
-                "--end", "2021-12-31",
+                "--strategy",
+                "pac_alignment",
+                "--start",
+                "2020-01-01",
+                "--end",
+                "2021-12-31",
             ],
         )
     ctx["exit_code"] = r.exit_code
     ctx["output"] = r.output
 
 
-@when('I run "python -m pac.backtester run --strategy nonexistent --start 2020-01-01 --end 2021-12-31"')  # noqa: E501
+@when(
+    'I run "python -m pac.backtester run --strategy nonexistent --start 2020-01-01 --end 2021-12-31"'  # noqa: E501
+)
 def _when_run_nonexistent_strategy(ctx: dict[str, Any]) -> None:
     mock_settings = MagicMock()
     mock_settings.assets = []
     runner = CliRunner()
     with (
-        patch("pac.backtester.cli.load_config", return_value=mock_settings),
-        patch("pac.backtester.cli.discover_strategies", return_value={}),
+        patch("pac.backtester.runner.load_config", return_value=mock_settings),
+        patch("pac.backtester.runner.discover_strategies", return_value={}),
     ):
         r = runner.invoke(
             app,
             [
                 "run",
-                "--strategy", "nonexistent",
-                "--start", "2020-01-01",
-                "--end", "2021-12-31",
+                "--strategy",
+                "nonexistent",
+                "--start",
+                "2020-01-01",
+                "--end",
+                "2021-12-31",
             ],
         )
     ctx["exit_code"] = r.exit_code

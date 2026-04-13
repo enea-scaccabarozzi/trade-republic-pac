@@ -4,6 +4,7 @@ Bypasses MarketDataProvider (network/yfinance) by injecting synthetic PriceSerie
 directly into BacktestSimulator. Proves that data loading → simulation → metrics
 → persistence pipeline works correctly with both builtin strategies.
 """
+
 from __future__ import annotations
 
 import json
@@ -233,9 +234,7 @@ def _run_full_pipeline(
         config=config,
         iterations=[sim.run_iteration(i) for i in range(config.monte_carlo_iterations)],
     )
-    report = compute_report(
-        sim_result, _INTEGRATION_SETTINGS, price_data, rng_seed=42
-    )
+    report = compute_report(sim_result, _INTEGRATION_SETTINGS, price_data, rng_seed=42)
     run_result = build_run_result(report)
 
     store = ResultStore(base_dir=tmp_path / "backtests")
@@ -249,11 +248,12 @@ def _run_full_pipeline(
 
 
 class TestStrategyDiscovery:
-    def test_both_strategies_discovered(self) -> None:
+    def test_all_strategies_discovered(self) -> None:
         discovered = discover_strategies()
         assert "pac_alignment" in discovered
         assert "cycle_exploit" in discovered
-        assert len(discovered) == 2
+        assert "crisis_exploit" in discovered
+        assert len(discovered) == 3
 
 
 # ---------------------------------------------------------------------------

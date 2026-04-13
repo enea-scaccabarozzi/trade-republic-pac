@@ -57,7 +57,10 @@ def _make_iteration(
 ) -> IterationResult:
     """Build an IterationResult with a controlled equity curve."""
     daily = _make_day_results(
-        values, start=start, allocations=allocations, cash=cash,
+        values,
+        start=start,
+        allocations=allocations,
+        cash=cash,
     )
     return IterationResult(
         iteration=iteration,
@@ -175,7 +178,10 @@ def three_iteration_report() -> BacktestReport:
         _make_pac_trade(date(2024, 2, 16), "bonds", 37.5),
     ]
     rebalance_trade = _make_rebalance_trade(
-        date(2024, 2, 5), "bonds", "buy", 100.0,
+        date(2024, 2, 5),
+        "bonds",
+        "buy",
+        100.0,
     )
 
     trades_iter0 = [*list(pac_trades), rebalance_trade]

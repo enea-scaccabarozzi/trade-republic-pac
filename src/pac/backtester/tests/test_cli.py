@@ -65,9 +65,7 @@ def _make_mock_result() -> RunResult:
         trades=[],
         summary=SummaryStats(
             total_invested=10000.0,
-            final_value=ConfidenceInterval(
-                p5=9000.0, median=11000.0, p95=12000.0
-            ),
+            final_value=ConfidenceInterval(p5=9000.0, median=11000.0, p95=12000.0),
             total_fees=ConfidenceInterval(p5=0.0, median=5.0, p95=10.0),
             total_trades=ConfidenceInterval(p5=0.0, median=3.0, p95=6.0),
             total_pac_executions=24,
@@ -85,9 +83,7 @@ def mock_run_backtest(
     mock_run_result: tuple[RunResult, Path],
 ) -> Generator[MagicMock, None, None]:
     result, path = mock_run_result
-    with patch(
-        "pac.backtester.cli._run_backtest", return_value=(result, path)
-    ) as m:
+    with patch("pac.backtester.cli._run_backtest", return_value=(result, path)) as m:
         yield m
 
 
@@ -112,19 +108,7 @@ def mock_discover_strategies() -> Generator[MagicMock, None, None]:
 
 @pytest.fixture
 def mock_discover_strategies_empty() -> Generator[MagicMock, None, None]:
-    with patch(
-        "pac.backtester.cli.discover_strategies", return_value={}
-    ) as m:
-        yield m
-
-
-@pytest.fixture
-def mock_load_config() -> Generator[MagicMock, None, None]:
-    mock_settings = MagicMock()
-    mock_settings.assets = []  # empty → no ticker validation, no data fetching
-    with patch(
-        "pac.backtester.cli.load_config", return_value=mock_settings
-    ) as m:
+    with patch("pac.backtester.cli.discover_strategies", return_value={}) as m:
         yield m
 
 
@@ -181,21 +165,25 @@ def test_run_command_valid_args_exits_zero(
 
 def test_run_command_unknown_strategy_exits_one(
     runner: CliRunner,
-    mock_discover_strategies_empty: MagicMock,
-    mock_load_config: MagicMock,
 ) -> None:
-    result = runner.invoke(
-        _cli,
-        [
-            "run",
-            "--strategy",
-            "nonexistent_strategy",
-            "--start",
-            "2020-01-01",
-            "--end",
-            "2021-12-31",
-        ],
-    )
+    mock_settings = MagicMock()
+    mock_settings.assets = []
+    with (
+        patch("pac.backtester.runner.load_config", return_value=mock_settings),
+        patch("pac.backtester.runner.discover_strategies", return_value={}),
+    ):
+        result = runner.invoke(
+            _cli,
+            [
+                "run",
+                "--strategy",
+                "nonexistent_strategy",
+                "--start",
+                "2020-01-01",
+                "--end",
+                "2021-12-31",
+            ],
+        )
     assert result.exit_code == 1
 
 
@@ -366,3 +354,13 @@ def test_interactive_mode_without_questionary_exits_one(
     result = runner.invoke(_cli, [])
     assert result.exit_code == 1
     assert "questionary" in result.output
+
+
+# ── dashboard command test ────────────────────────────────────────────────────
+
+
+def test_dashboard_command_in_help(runner: CliRunner) -> None:
+    """Verify the dashboard subcommand is registered."""
+    result = runner.invoke(_cli, ["dashboard", "--help"])
+    assert result.exit_code == 0
+    assert "Launch the backtester web dashboard" in result.output

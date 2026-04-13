@@ -11,33 +11,22 @@ from typing import Annotated, Any
 
 import pydantic
 import typer
-import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
+    TaskID,
     TaskProgressColumn,
     TextColumn,
 )
 from rich.table import Table
 
-from pac.backtester.config import BacktestConfig
-from pac.backtester.data.models import DataRequest
-from pac.backtester.data.provider import MarketDataProvider
-from pac.backtester.engine.simulator import (
-    BacktestSimulator,
-    IterationResult,
-    SimulationResult,
-)
-from pac.backtester.results.aggregation import build_run_result
+from pac.backtester.config import VALID_METRICS, BacktestConfig
 from pac.backtester.results.models import MetricValue, RunResult
 from pac.backtester.results.store import ResultStore
 from pac.backtester.strategies.discovery import discover_strategies
-from pac.config.loader import load_config
-from pac.rules.discovery import discover_rules
-from pac.rules.registry import SignalRegistry
 
 try:
     import questionary
@@ -45,18 +34,13 @@ except ImportError:
     questionary = None  # type: ignore[assignment]
 
 
-_VALID_METRICS = frozenset(
-    {"sortino", "calmar", "max_drawdown", "cagr", "sharpe", "volatility"}
+from pac.backtester.cli_charts import (
+    build_metrics_table,
+    build_trade_table,
+    plot_allocation,
+    plot_drawdown,
+    plot_equity_curve,
 )
-_PCT_METRICS = frozenset({"max_drawdown", "cagr"})
-_METRIC_LABELS: dict[str, str] = {
-    "sortino": "Sortino",
-    "calmar": "Calmar",
-    "max_drawdown": "Max Drawdown",
-    "cagr": "CAGR",
-    "sharpe": "Sharpe",
-    "volatility": "Volatility",
-}
 
 app = typer.Typer(
     name="pac-backtester",
@@ -95,11 +79,11 @@ def _parse_slippage(s: str) -> tuple[int, int]:
 def _parse_metrics(s: str) -> list[str]:
     """Parse comma-separated metric names. Validates each name."""
     names = [n.strip() for n in s.split(",") if n.strip()]
-    invalid = [n for n in names if n not in _VALID_METRICS]
+    invalid = [n for n in names if n not in VALID_METRICS]
     if invalid:
         raise typer.BadParameter(
             f"Unknown metrics: {', '.join(invalid)}. "
-            f"Choices: {', '.join(sorted(_VALID_METRICS))}"
+            f"Choices: {', '.join(sorted(VALID_METRICS))}"
         )
     return names
 
@@ -110,14 +94,10 @@ def _parse_pac_days(s: str) -> list[int]:
     days: list[int] = []
     for p in parts:
         if not p.isdigit():
-            raise typer.BadParameter(
-                f"Invalid PAC day '{p}'. Must be an integer 1-28."
-            )
+            raise typer.BadParameter(f"Invalid PAC day '{p}'. Must be an integer 1-28.")
         d = int(p)
         if not 1 <= d <= 28:
-            raise typer.BadParameter(
-                f"PAC execution day must be 1-28, got {d}."
-            )
+            raise typer.BadParameter(f"PAC execution day must be 1-28, got {d}.")
         days.append(d)
     return days
 
@@ -127,9 +107,7 @@ def _parse_strategy_params(s: str) -> dict[str, Any]:
     try:
         result = json.loads(s)
     except json.JSONDecodeError as e:
-        raise typer.BadParameter(
-            f"Invalid JSON for strategy params: {e}"
-        ) from e
+        raise typer.BadParameter(f"Invalid JSON for strategy params: {e}") from e
     if not isinstance(result, dict):
         raise typer.BadParameter("Strategy params must be a JSON object.")
     return result
@@ -183,9 +161,7 @@ def run(
     ] = 10000.0,
     monthly_contribution: Annotated[
         float,
-        typer.Option(
-            "--monthly-contribution", help="Monthly PAC contribution in EUR."
-        ),
+        typer.Option("--monthly-contribution", help="Monthly PAC contribution in EUR."),
     ] = 500.0,
     metrics: Annotated[
         str,
@@ -333,8 +309,7 @@ def results() -> None:
 
     if not run_ids:
         con.print(
-            "No saved backtest runs found. "
-            "Run 'pac.backtester run ...' to create one."
+            "No saved backtest runs found. Run 'pac.backtester run ...' to create one."
         )
         return
 
@@ -350,9 +325,7 @@ def results() -> None:
         try:
             result = store.load(run_id)
         except (ValueError, Exception):
-            con.print(
-                f"[yellow]Warning: skipping corrupted entry {run_id}[/yellow]"
-            )
+            con.print(f"[yellow]Warning: skipping corrupted entry {run_id}[/yellow]")
             continue
 
         strategy_name = result.config.strategy
@@ -361,9 +334,7 @@ def results() -> None:
 
         cagr_mv = result.metrics.get("strategy", {}).get("cagr", "—")
         cagr_str = (
-            f"{cagr_mv.median * 100:.1f}%"
-            if isinstance(cagr_mv, MetricValue)
-            else "—"
+            f"{cagr_mv.median * 100:.1f}%" if isinstance(cagr_mv, MetricValue) else "—"
         )
 
         table.add_row(run_id, strategy_name, created, final_val, cagr_str)
@@ -398,34 +369,104 @@ def show(
     _display_run_result(result, saved_path=saved_path)
 
 
+@app.command()
+def dashboard(
+    host: Annotated[
+        str,
+        typer.Option("--host", "-h", help="Bind address."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", "-p", help="Bind port."),
+    ] = 8090,
+    reload: Annotated[
+        bool,
+        typer.Option("--reload/--no-reload", help="Enable hot-reload for development."),
+    ] = False,
+    no_open: Annotated[
+        bool,
+        typer.Option("--no-open", help="Don't auto-open browser."),
+    ] = False,
+    static_dir: Annotated[
+        Path | None,
+        typer.Option(
+            "--static-dir",
+            help="Path to SPA build output (dist/). Overrides default.",
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ] = None,
+) -> None:
+    """Launch the backtester web dashboard."""
+    try:
+        import fastapi  # noqa: F401 — test dashboard deps installed
+    except ImportError:
+        _error(
+            "Dashboard requires extra dependencies.\n"
+            "Install them with: uv sync --group dashboard"
+        )
+        raise typer.Exit(1) from None
+
+    import uvicorn
+
+    from pac.backtester.api.app import create_app
+
+    # Locate SPA dist/
+    if static_dir is not None:
+        resolved_static = static_dir if static_dir.is_dir() else None
+    else:
+        dist_dir = Path(__file__).parent / "dashboard" / "dist"
+        resolved_static = dist_dir if dist_dir.is_dir() else None
+
+    if resolved_static is None:
+        con = Console()
+        con.print("[yellow]Warning: SPA not built. Only API available.[/yellow]")
+        con.print(
+            "[dim]Build with: cd src/pac/backtester/dashboard"
+            " && bun run build[/dim]",
+        )
+
+    if not no_open:
+        import webbrowser
+
+        webbrowser.open(f"http://{host}:{port}")
+
+    if reload:
+        import os
+
+        if resolved_static:
+            os.environ["PAC_DASHBOARD_STATIC_DIR"] = str(
+                resolved_static,
+            )
+        uvicorn.run(
+            "pac.backtester.api.app:create_app",
+            factory=True,
+            host=host,
+            port=port,
+            reload=True,
+            log_level="info",
+        )
+    else:
+        _app = create_app(static_dir=resolved_static)
+        uvicorn.run(
+            _app,
+            host=host,
+            port=port,
+            log_level="info",
+        )
+
+
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 
-def _fmt_metric_value(mv: MetricValue, *, is_pct: bool) -> str:
-    """Format a MetricValue with P5-P95 confidence interval."""
-    if is_pct:
-        return (
-            f"{mv.median * 100:.1f}% "
-            f"[{mv.p5 * 100:6.1f}% - {mv.p95 * 100:5.1f}%]"
-        )
-    return f"{mv.median:.2f} [{mv.p5:.2f} - {mv.p95:.2f}]"
-
-
-def _fmt_benchmark_value(mv: MetricValue, *, is_pct: bool) -> str:
-    """Format a benchmark MetricValue (median only)."""
-    if is_pct:
-        return f"{mv.median * 100:.1f}%"
-    return f"{mv.median:.2f}"
-
-
-def _display_run_result(
-    result: RunResult, saved_path: Path | None = None
-) -> None:
-    """Render a RunResult to the terminal using rich panels and tables."""
+def _display_run_result(result: RunResult, saved_path: Path | None = None) -> None:
+    """Render a RunResult to the terminal using rich panels, tables, and charts."""
     con = Console()
     config = result.config
     slip_min, slip_max = config.slippage_days
 
+    # Header panel
     con.print(
         Panel(
             f"{config.start_date} → {config.end_date} · "
@@ -435,39 +476,46 @@ def _display_run_result(
         )
     )
 
-    # Metrics table
-    con.print("\n📈 [bold]Performance Metrics[/bold]\n")
-    table = Table(show_header=True, header_style="bold", show_edge=False)
-    table.add_column("Metric")
-    table.add_column("Strategy [P5 - P95]")
-    if config.benchmark:
-        table.add_column("Benchmark")
-
-    strategy_metrics = result.metrics.get("strategy", {})
-    benchmark_metrics = result.metrics.get("benchmark", {})
-
-    for metric_name in config.metrics:
-        label = _METRIC_LABELS.get(metric_name, metric_name.title())
-        is_pct = metric_name in _PCT_METRICS
-        mv = strategy_metrics.get(metric_name)
-        if mv is None:
-            continue
-        row: list[str] = [label, _fmt_metric_value(mv, is_pct=is_pct)]
-        if config.benchmark:
-            bv = benchmark_metrics.get(metric_name)
-            row.append(
-                _fmt_benchmark_value(bv, is_pct=is_pct) if bv is not None else "—"
+    # Charts (graceful if plotext not installed)
+    if result.equity_curve:
+        try:
+            con.print("\n📈 [bold]Equity Curve[/bold]\n")
+            con.print(plot_equity_curve(result.equity_curve))
+            con.print("\n📉 [bold]Drawdown[/bold]\n")
+            con.print(plot_drawdown(result.equity_curve))
+        except ImportError:
+            con.print(
+                "[dim]Install plotext for charts: uv sync --group backtest[/dim]\n"
             )
-        table.add_row(*row)
 
-    con.print(table)
+    if result.allocations:
+        try:
+            con.print("\n🥧 [bold]Asset Allocation[/bold]\n")
+            con.print(plot_allocation(result.allocations))
+        except ImportError:
+            pass  # already warned above
+
+    # Metrics table
+    con.print("\n📊 [bold]Performance Metrics[/bold]\n")
+    con.print(build_metrics_table(result.metrics, config.metrics, config.benchmark))
+
+    # Trade log
+    if result.trades:
+        max_trades = 50
+        con.print("\n🔄 [bold]Trade Log[/bold]\n")
+        display_trades = result.trades[-max_trades:]
+        if len(result.trades) > max_trades:
+            con.print(
+                f"[dim]Showing last {max_trades} of {len(result.trades)} trades[/dim]\n"
+            )
+        con.print(build_trade_table(display_trades))
 
     # Summary
     con.print("\n💰 [bold]Summary[/bold]\n")
     summary = result.summary
     fv = summary.final_value
     fees = summary.total_fees
-    trades = summary.total_trades
+    trades_ci = summary.total_trades
     total_return_pct = (
         (fv.median - summary.total_invested) / summary.total_invested * 100
         if summary.total_invested > 0
@@ -476,17 +524,15 @@ def _display_run_result(
 
     con.print(f" Total Invested:    €{summary.total_invested:,.2f}")
     con.print(
-        f" Final Value:       €{fv.median:,.0f}"
-        f" [ €{fv.p5:,.0f} - €{fv.p95:,.0f} ]"
+        f" Final Value:       €{fv.median:,.0f} [ €{fv.p5:,.0f} - €{fv.p95:,.0f} ]"
     )
     con.print(f" Total Return:      {total_return_pct:+.1f}%")
     con.print(
-        f" Total Fees:        €{fees.median:.0f}"
-        f" [ €{fees.p5:.0f} - €{fees.p95:.0f} ]"
+        f" Total Fees:        €{fees.median:.0f} [ €{fees.p5:.0f} - €{fees.p95:.0f} ]"
     )
     con.print(
-        f" Total Trades:      {trades.median:.0f}"
-        f" [ {trades.p5:.0f} - {trades.p95:.0f} ]"
+        f" Total Trades:      {trades_ci.median:.0f}"
+        f" [ {trades_ci.p5:.0f} - {trades_ci.p95:.0f} ]"
     )
     con.print(f" PAC Executions:    {summary.total_pac_executions}")
     con.print()
@@ -500,31 +546,9 @@ def _run_backtest(
     config_path: Path,
     seed: int | None,
 ) -> tuple[RunResult, Path]:
-    """Orchestrate a full backtest run with Rich progress output.
+    """Orchestrate a full backtest run with Rich progress output."""
+    from pac.backtester.runner import PipelineError, run_pipeline
 
-    Steps:
-      1. Load settings from YAML
-      2. Validate all assets have tickers configured
-      3. Load market data (with progress spinner)
-      4. Load SignalRegistry from discovered rules
-      5. Discover and instantiate strategy
-      6. Run simulator (with progress bar over MC iterations)
-      7. Compute metrics report
-      8. Build RunResult
-      9. Save to ResultStore
-     10. Return RunResult for display
-
-    Args:
-        config: Validated backtest configuration.
-        config_path: Path to the pac.yaml config file.
-        seed: Optional RNG seed for MC reproducibility.
-
-    Returns:
-        Tuple of (RunResult, path to saved JSON).
-
-    Raises:
-        typer.Exit(1): On any fatal error (printed to stderr via _error).
-    """
     con = Console()
 
     with Progress(
@@ -535,126 +559,27 @@ def _run_backtest(
         console=con,
         transient=True,
     ) as progress:
-        # Step 1: Load settings
-        task = progress.add_task("Loading config...", total=None)
+        mc_task: TaskID | None = None
+
+        def _on_progress(current: int, total: int) -> None:
+            nonlocal mc_task
+            if mc_task is None:
+                mc_task = progress.add_task(
+                    f"Running {total} Monte Carlo iterations...",
+                    total=total,
+                )
+            progress.update(mc_task, completed=current)
+
         try:
-            settings = load_config(config_path)
-        except FileNotFoundError as e:
-            _error(f"Config not found: {e}")
-            raise typer.Exit(1) from None
-        except yaml.YAMLError as e:
-            _error(f"Config YAML is invalid: {e}")
-            raise typer.Exit(1) from None
-        except ValueError as e:
-            _error(f"Config invalid: {e}")
-            raise typer.Exit(1) from None
-        progress.update(task, completed=1, total=1)
-
-        # Step 2: Validate tickers
-        task2 = progress.add_task("Validating asset tickers...", total=None)
-        missing = [a for a in settings.assets if not a.ticker]
-        if missing:
-            names = ", ".join(a.id for a in missing)
-            _error(
-                f"Assets missing 'ticker' field: {names}\n"
-                "Add 'ticker: SWRD.SW' to each asset in pac.yaml."
+            return run_pipeline(
+                config,
+                config_path,
+                seed=seed,
+                on_progress=_on_progress,
             )
-            raise typer.Exit(1)
-        progress.update(task2, completed=1, total=1)
-
-        # Step 3: Load market data
-        task3 = progress.add_task("Fetching market data...", total=None)
-        requests = [
-            DataRequest(
-                ticker=ticker,
-                start=config.start_date,
-                end=config.end_date,
-            )
-            for a in settings.assets
-            if (ticker := a.ticker) is not None
-        ]
-        try:
-            provider = MarketDataProvider()
-            price_data = {req.ticker: provider.fetch(req) for req in requests}
-        except ImportError:
-            _error(
-                "Backtester requires backtest deps. "
-                "Install with: uv sync --group backtest"
-            )
+        except PipelineError as e:
+            _error(str(e))
             raise typer.Exit(1) from None
-        except Exception as e:
-            _error(
-                f"Failed to fetch market data: {e}\n"
-                "Check network connectivity and ticker symbols."
-            )
-            raise typer.Exit(1) from None
-        progress.update(task3, completed=1, total=1)
-
-        # Step 4: Load signal registry
-        rule_classes = discover_rules()
-        registry = SignalRegistry()
-        for rule_cls in rule_classes.values():
-            registry.register(rule_cls)
-
-        # Step 5: Discover and instantiate strategy
-        available = discover_strategies()
-        if config.strategy not in available:
-            _error(
-                f"Unknown strategy '{config.strategy}'.\n"
-                f"Available: {', '.join(sorted(available))}"
-            )
-            raise typer.Exit(1)
-
-        strategy_cls = available[config.strategy]
-        try:
-            params = strategy_cls.params_model.model_validate(
-                config.strategy_params
-            )
-        except pydantic.ValidationError as e:
-            _error(f"Invalid strategy params:\n{e}")
-            raise typer.Exit(1) from None
-        strategy = strategy_cls(params)
-
-        # Step 6: Run simulator with MC progress
-        simulator = BacktestSimulator(
-            config,
-            settings,
-            price_data,
-            registry,
-            strategy,
-            rng_seed=seed,
-        )
-        mc_task = progress.add_task(
-            f"Running {config.monte_carlo_iterations} Monte Carlo iterations...",
-            total=config.monte_carlo_iterations,
-        )
-        iterations: list[IterationResult] = []
-        for i in range(config.monte_carlo_iterations):
-            iterations.append(simulator.run_iteration(i))
-            progress.update(mc_task, advance=1)
-
-        # Step 7/8/9: Metrics → report → RunResult → save
-        try:
-            from pac.backtester.metrics.report import compute_report
-        except ImportError:
-            _error(
-                "Backtester requires backtest deps. "
-                "Install with: uv sync --group backtest"
-            )
-            raise typer.Exit(1) from None
-
-        sim_result = SimulationResult(config=config, iterations=iterations)
-        report = compute_report(sim_result, settings, price_data, rng_seed=seed)
-        try:
-            run_result = build_run_result(report)
-        except ValueError as e:
-            _error(
-                f"Failed to build run result (no completed iterations?): {e}"
-            )
-            raise typer.Exit(1) from None
-        path = ResultStore().save(run_result)
-
-    return run_result, path
 
 
 def _try_parse_date(s: str) -> date | None:
@@ -753,9 +678,7 @@ def _interactive_mode() -> None:
     initial_cash_answer = questionary.text(
         "Initial cash balance (EUR):",
         default="10000",
-        validate=lambda s: (
-            _try_positive_float(s) or "Must be a positive number"
-        ),
+        validate=lambda s: _try_positive_float(s) or "Must be a positive number",
     ).ask()
     if initial_cash_answer is None:
         raise typer.Exit(0)
@@ -803,9 +726,7 @@ def _interactive_mode() -> None:
     iterations_answer = questionary.text(
         "Monte Carlo iterations:",
         default="100",
-        validate=lambda s: (
-            (s.isdigit() and int(s) >= 1) or "Must be an integer >= 1"
-        ),
+        validate=lambda s: (s.isdigit() and int(s) >= 1) or "Must be an integer >= 1",
     ).ask()
     if iterations_answer is None:
         raise typer.Exit(0)
@@ -822,9 +743,7 @@ def _interactive_mode() -> None:
     strategy_params_answer = questionary.text(
         "Strategy params as JSON (or press Enter for defaults):",
         default="{}",
-        validate=lambda s: (
-            _try_parse_json(s) is not None or "Must be valid JSON"
-        ),
+        validate=lambda s: _try_parse_json(s) is not None or "Must be valid JSON",
     ).ask()
     if strategy_params_answer is None:
         raise typer.Exit(0)

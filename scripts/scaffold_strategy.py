@@ -142,10 +142,7 @@ class TestInit:
         print(f"  Created: {p}")
 
     print()
-    print(
-        "Discovery is automatic — "
-        "discover_strategies() scans .py files directly."
-    )
+    print("Discovery is automatic — discover_strategies() scans .py files directly.")
     return created
 
 

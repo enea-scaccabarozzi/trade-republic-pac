@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
@@ -11,12 +11,15 @@ from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal, SignalSeverity
 from pac.rules.base import SignalRule
 
+if TYPE_CHECKING:
+    from pac.market_context import MarketContext
+
 
 class PacPlanParams(BaseModel):
     """Parameters for the PAC plan computation rule."""
 
     monthly_budget: Decimal = Field(default=Decimal("500.00"), gt=0)
-    day_of_month: int = Field(default=14, ge=1, le=28)
+    day_of_month: int = Field(default=16, ge=1, le=28)
 
 
 class PacPlanRule(SignalRule[PacPlanParams]):
@@ -31,6 +34,7 @@ class PacPlanRule(SignalRule[PacPlanParams]):
         report: DeviationReport,
         snapshot: PortfolioSnapshot,
         params: PacPlanParams,
+        market_ctx: MarketContext | None = None,
     ) -> list[Signal]:
         """Compute a monthly PAC allocation plan and emit a summary signal."""
         targets = {aid: dev.target_pct for aid, dev in report.deviations.items()}

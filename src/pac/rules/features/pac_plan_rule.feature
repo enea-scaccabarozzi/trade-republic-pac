@@ -33,3 +33,9 @@ Feature: PAC Plan Rule
     When the PAC plan rule evaluates with default params
     Then exactly 1 signal is emitted
     And each allocation percentage sums to 100
+
+  Scenario: PAC plan uses day 16 as default execution day
+    Given a balanced portfolio at target allocation
+    When the PAC plan rule evaluates with default params
+    Then exactly 1 signal is emitted
+    And the signal metadata contains day_of_month of 16

@@ -86,10 +86,14 @@ class TestOnPacDateDefault:
         strategy = _ValidStrategy(_MyParams())
         result = strategy.on_pac_date(
             snapshot=PortfolioSnapshot(
-                positions=[], cash=Decimal(0), timestamp=_NOW,
+                positions=[],
+                cash=Decimal(0),
+                timestamp=_NOW,
             ),
             report=DeviationReport(
-                deviations={}, max_severity=SignalSeverity.INFO, timestamp=_NOW,
+                deviations={},
+                max_severity=SignalSeverity.INFO,
+                timestamp=_NOW,
             ),
             current_date=date(2024, 1, 2),
             current_pac_volumes={"stocks": Decimal("350")},
@@ -125,10 +129,14 @@ class TestOnPacDateDefault:
         volumes = {"stocks": Decimal("350"), "gold": Decimal("75")}
         strategy.on_pac_date(
             snapshot=PortfolioSnapshot(
-                positions=[], cash=Decimal(0), timestamp=_NOW,
+                positions=[],
+                cash=Decimal(0),
+                timestamp=_NOW,
             ),
             report=DeviationReport(
-                deviations={}, max_severity=SignalSeverity.INFO, timestamp=_NOW,
+                deviations={},
+                max_severity=SignalSeverity.INFO,
+                timestamp=_NOW,
             ),
             current_date=date(2024, 1, 2),
             current_pac_volumes=volumes,
@@ -163,10 +171,14 @@ class TestStrategyIsStateful:
 
         strategy = _StatefulStrategy(_MyParams())
         snapshot = PortfolioSnapshot(
-            positions=[], cash=Decimal(0), timestamp=_NOW,
+            positions=[],
+            cash=Decimal(0),
+            timestamp=_NOW,
         )
         report = DeviationReport(
-            deviations={}, max_severity=SignalSeverity.INFO, timestamp=_NOW,
+            deviations={},
+            max_severity=SignalSeverity.INFO,
+            timestamp=_NOW,
         )
 
         strategy.on_signals([], snapshot, report, date(2024, 1, 1))

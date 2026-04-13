@@ -190,7 +190,9 @@ class TestDeterminism:
         result1 = sim1.run()
         result2 = sim2.run()
         for it1, it2 in zip(
-            result1.iterations, result2.iterations, strict=True,
+            result1.iterations,
+            result2.iterations,
+            strict=True,
         ):
             assert it1.final_value == it2.final_value
             assert len(it1.daily_values) == len(it2.daily_values)

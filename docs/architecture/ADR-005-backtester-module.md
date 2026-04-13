@@ -3,6 +3,12 @@
 **Source:** Task 005 (April 2026)
 **Status:** Accepted
 
+## Updates
+
+| Date       | Task | Change                                                                                        |
+| ---------- | ---- | --------------------------------------------------------------------------------------------- |
+| April 2026 | 008  | Added NiceGUI web dashboard, CLI chart enhancements (plotext), shared `run_pipeline()` runner |
+
 ## Context
 
 The PAC system generates trading signals from live portfolio data but provided no
@@ -150,7 +156,90 @@ Each saved result is a timestamped JSON file in `.pac/backtests/` with:
 just new-strategy <name>   # scaffold BacktestStrategy skeleton + test
 just backtest              # interactive CLI run
 just backtest-sync         # install optional deps
+just dashboard             # start web dashboard
+just dashboard-sync        # install dashboard deps
 ```
+
+## Dashboard UI Layer (Task 008)
+
+### Decision
+
+Add a NiceGUI web dashboard and plotext-based CLI charts as two optional
+presentation layers over the existing `RunResult` JSON schema.
+
+### Why
+
+- The CLI `show` command produced text-only output — no charts, no drawdown
+  info, no color-coded metric comparisons.
+- Interactive exploration (filtering, zooming, comparing runs) requires a
+  web-based UI; terminal output cannot provide this.
+- The backtest wizard (interactive config via `questionary`) was CLI-coupled;
+  a web form provides richer validation and parameter editing.
+
+### Framework Choice: NiceGUI
+
+NiceGUI was selected over Streamlit, Dash, and Panel for:
+
+- **AG Grid** integration for trade tables (sort, filter, export)
+- **Plotly** integration for equity curves with confidence bands
+- **WebSocket-based** architecture for real-time progress during backtest runs
+- **`ui.timer` + `background_tasks`** for long-running backtests without blocking
+- **`@ui.page` routing** for multi-page app (results, wizard, compare)
+- **Tailwind CSS** for custom styling
+
+### Architecture
+
+```
+src/pac/backtester/
+├── cli_charts.py              # plotext terminal chart builders
+├── runner.py                  # run_pipeline() — shared backtest pipeline (CLI + dashboard)
+└── dashboard/
+    ├── __main__.py            # python -m pac.backtester.dashboard entry point
+    ├── app.py                 # NiceGUI app init, @ui.page route registration
+    ├── charts.py              # Pure Plotly figure builders (equity, allocation, drawdown)
+    ├── state.py               # DashboardState — ResultStore wrapper + loaded runs cache
+    ├── components/
+    │   └── layout.py          # Shared layout shell (header, sidebar navigation)
+    └── pages/
+        ├── results_list.py    # Run listing with metadata table
+        ├── result_detail.py   # Single run viewer (charts, KPI cards, trade log)
+        ├── run.py             # Backtest wizard form + live progress
+        └── compare.py         # Multi-run comparison (overlaid charts, metrics table)
+```
+
+### Key Patterns
+
+**Shared pipeline:** `run_pipeline()` in `runner.py` extracts the core backtest
+orchestration from the CLI, making it reusable by both `cli.py` and the dashboard
+wizard. The CLI and dashboard provide their own progress reporting.
+
+**Pure chart builders:** `dashboard/charts.py` contains stateless functions that
+accept `RunResult` data and return Plotly `Figure` objects. These are decoupled
+from NiceGUI rendering and independently testable.
+
+**State caching:** `DashboardState` wraps `ResultStore` and caches loaded
+`RunResult` objects to avoid re-parsing JSON on each page navigation.
+
+**Side-effect page registration:** Pages use `@ui.page` decorators and are
+registered via module-level side-effect imports in `app.py`.
+
+### Dependency Groups
+
+The dashboard introduces a second optional dependency group:
+
+| Group       | Packages             | Purpose                     |
+| ----------- | -------------------- | --------------------------- |
+| `backtest`  | yfinance, quantstats | Simulation engine + metrics |
+| `dashboard` | nicegui, plotly      | Web dashboard UI            |
+| `backtest`  | plotext              | CLI terminal charts         |
+
+### CLI Enhancements (plotext)
+
+The `show` command renders terminal charts via plotext:
+- Equity curve with P5/median/P95 bands
+- Asset allocation stacked area chart
+- Drawdown from peak chart
+- Color-coded metric comparison (green/red for better/worse vs benchmark)
 
 ## Consequences
 

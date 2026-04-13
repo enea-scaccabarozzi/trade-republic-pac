@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pac.analysis.deviation import DeviationReport
 from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal
 from pac.rules.base import SignalRule, _NoParams
+
+if TYPE_CHECKING:
+    from pac.market_context import MarketContext
 
 
 class SignalRegistry:
@@ -43,6 +46,7 @@ class SignalRegistry:
         params_dict: dict[str, Any],
         report: DeviationReport,
         snapshot: PortfolioSnapshot,
+        market_ctx: MarketContext | None = None,
     ) -> list[Signal]:
         """Evaluate a single signal by name with raw params dict.
 
@@ -54,6 +58,7 @@ class SignalRegistry:
             params_dict: Raw params from config (validated here).
             report: Deviation analysis.
             snapshot: Current portfolio state.
+            market_ctx: Optional market data context for lookback indicators.
 
         Returns:
             List of triggered signals.
@@ -65,12 +70,13 @@ class SignalRegistry:
         rule_cls = self._rules[name]
         params = rule_cls.params_model.model_validate(params_dict)
         rule = rule_cls()
-        return rule.evaluate(report, snapshot, params)
+        return rule.evaluate(report, snapshot, params, market_ctx=market_ctx)
 
     def evaluate_all(
         self,
         report: DeviationReport,
         snapshot: PortfolioSnapshot,
+        market_ctx: MarketContext | None = None,
     ) -> list[Signal]:
         """Run all registered rules with default params.
 
@@ -80,6 +86,7 @@ class SignalRegistry:
         Args:
             report: Deviation analysis for the current portfolio.
             snapshot: Current portfolio state.
+            market_ctx: Optional market data context for lookback indicators.
 
         Returns:
             Flat list of all signals from all rules.
@@ -88,7 +95,9 @@ class SignalRegistry:
         for rule_cls in self._rules.values():
             params = rule_cls.params_model()
             rule = rule_cls()
-            signals.extend(rule.evaluate(report, snapshot, params))
+            signals.extend(
+                rule.evaluate(report, snapshot, params, market_ctx=market_ctx)
+            )
         return signals
 
     def get_rule(self, name: str) -> type[SignalRule[Any]]:

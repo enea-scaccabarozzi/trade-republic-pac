@@ -110,3 +110,57 @@ backtest-sync:
 # Run backtester (interactive mode by default; pass subcommand/flags for batch)
 backtest *args:
     uv run python -m pac.backtester {{ args }}
+
+# Run crisis backtest validation (full — ~15 scenarios, 50/200 MC iterations)
+backtest-validate:
+    uv run python scripts/run_backtest_validation.py
+
+# Run crisis backtest validation (quick smoke test — 10 MC iterations)
+backtest-validate-quick:
+    uv run python scripts/run_backtest_validation.py --quick
+
+# Dashboard
+
+# Install dashboard dependencies
+dashboard-sync:
+    uv sync --group backtest --group dashboard
+
+# Start dashboard API server (development)
+dashboard-dev:
+    uv run python -m pac.backtester dashboard --reload
+
+# Start dashboard (production, with built SPA)
+dashboard *args:
+    uv run python -m pac.backtester dashboard {{ args }}
+
+# Install dashboard UI dependencies
+dashboard-ui-sync:
+    cd src/pac/backtester/dashboard && bun install
+
+# Start dashboard UI dev server (Vite, proxies to FastAPI)
+dashboard-ui-dev:
+    cd src/pac/backtester/dashboard && bun run dev
+
+# Build dashboard UI for production
+dashboard-ui-build:
+    cd src/pac/backtester/dashboard && bun run build
+
+# Lint + format check dashboard UI
+dashboard-ui-lint:
+    cd src/pac/backtester/dashboard && bun run lint
+
+# Format dashboard UI
+dashboard-ui-format:
+    cd src/pac/backtester/dashboard && bun run format
+
+# Type-check dashboard UI
+dashboard-ui-typecheck:
+    cd src/pac/backtester/dashboard && bun run typecheck
+
+# Run all dashboard UI checks (lint + typecheck)
+dashboard-ui-validate: dashboard-ui-lint dashboard-ui-typecheck
+    @echo "✅ Dashboard UI validation complete"
+
+# Full development setup: install all deps
+dashboard-dev-setup: dashboard-sync dashboard-ui-sync
+    @echo "✅ Dependencies installed. Run 'just dashboard-dev' and 'just dashboard-ui-dev' in separate terminals."

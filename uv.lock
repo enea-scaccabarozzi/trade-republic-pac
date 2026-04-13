@@ -578,6 +578,22 @@ wheels = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.135.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f7/e6/7adb4c5fa231e82c35b8f5741a9f2d055f520c29af5546fd70d3e8e1cd2e/fastapi-0.135.3.tar.gz", hash = "sha256:bd6d7caf1a2bdd8d676843cdcd2287729572a1ef524fc4d65c17ae002a1be654", size = 396524 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/a4/5caa2de7f917a04ada20018eccf60d6cc6145b0199d55ca3711b0fc08312/fastapi-0.135.3-py3-none-any.whl", hash = "sha256:9b0f590c813acd13d0ab43dd8494138eb58e484bfac405db1f3187cfc5810d98", size = 117734 },
+]
+
+[[package]]
 name = "filelock"
 version = "3.25.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1491,6 +1507,15 @@ wheels = [
 ]
 
 [[package]]
+name = "plotext"
+version = "5.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/d7/f75f397af966fe252d0d34ffd3cae765317fce2134f925f95e7d6725d1ce/plotext-5.3.2.tar.gz", hash = "sha256:52d1e932e67c177bf357a3f0fe6ce14d1a96f7f7d5679d7b455b929df517068e", size = 61967 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f6/1e/12fe7c40cd2099a1f454518754ed229b01beaf3bbb343127f0cc13ce6c22/plotext-5.3.2-py3-none-any.whl", hash = "sha256:394362349c1ddbf319548cfac17ca65e6d5dfc03200c40dfdc0503b3e95a2283", size = 64047 },
+]
+
+[[package]]
 name = "pluggy"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2172,6 +2197,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sse-starlette"
+version = "3.3.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/26/8c/f9290339ef6d79badbc010f067cd769d6601ec11a57d78569c683fb4dd87/sse_starlette-3.3.4.tar.gz", hash = "sha256:aaf92fc067af8a5427192895ac028e947b484ac01edbc3caf00e7e7137c7bef1", size = 32427 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f8/7f/3de5402f39890ac5660b86bcf5c03f9d855dad5c4ed764866d7b592b46fd/sse_starlette-3.3.4-py3-none-any.whl", hash = "sha256:84bb06e58939a8b38d8341f1bc9792f06c2b53f48c608dd207582b664fc8f3c1", size = 14330 },
+]
+
+[[package]]
 name = "starlette"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2296,9 +2334,14 @@ dependencies = [
 
 [package.dev-dependencies]
 backtest = [
+    { name = "plotext" },
     { name = "quantstats" },
     { name = "questionary" },
     { name = "yfinance" },
+]
+dashboard = [
+    { name = "fastapi" },
+    { name = "sse-starlette" },
 ]
 dev = [
     { name = "httpx" },
@@ -2317,6 +2360,9 @@ dev = [
     { name = "typer" },
     { name = "types-pyyaml" },
 ]
+research = [
+    { name = "matplotlib" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2333,9 +2379,14 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 backtest = [
+    { name = "plotext", specifier = ">=5.2" },
     { name = "quantstats", specifier = ">=0.0.81" },
     { name = "questionary", specifier = ">=2.1.1" },
     { name = "yfinance", specifier = ">=1.2.0" },
+]
+dashboard = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "sse-starlette", specifier = ">=2.0" },
 ]
 dev = [
     { name = "httpx", specifier = ">=0.27" },
@@ -2354,6 +2405,7 @@ dev = [
     { name = "typer", extras = ["all"], specifier = ">=0.12" },
     { name = "types-pyyaml", specifier = ">=6.0.12.20250915" },
 ]
+research = [{ name = "matplotlib", specifier = ">=3.8" }]
 
 [[package]]
 name = "typer"

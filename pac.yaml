@@ -1,0 +1,48 @@
+# pac.yaml — single source of truth for the PAC system
+# Copy to pac.yaml and set environment variables for secrets.
+
+version: 1
+
+# ─── Application ─────────────────────────────────────────
+app:
+  log_level: INFO
+  dev_mode: false
+  port: 8080
+  job_secret: "${PAC_JOB_SECRET}"
+
+# ─── Broker ──────────────────────────────────────────────
+broker:
+  type: trade_republic
+  phone_number: "${TR_PHONE_NUMBER}"
+  pin: "${TR_PIN}"
+  cookies_path: /tmp/tr_cookies
+
+# ─── Assets ──────────────────────────────────────────────
+assets:
+  - id: stocks
+    name: Stocks ETF
+    isin: IE00BK5BQT80
+    target_pct: 70
+
+  - id: gold
+    name: Gold ETC
+    isin: IE00B4ND3602
+    target_pct: 15
+
+  - id: bonds
+    name: Bond ETF
+    isin: IE00B3F81409
+    target_pct: 15
+
+# ─── Delivery channels ──────────────────────────────────
+channels:
+  telegram:
+    type: telegram
+    bot_token: "${TELEGRAM_BOT_TOKEN}"
+    chat_id: "${TELEGRAM_CHAT_ID}"
+    webhook:
+      url: "${TELEGRAM_WEBHOOK_URL}"
+      secret: "${TELEGRAM_WEBHOOK_SECRET}"
+
+# ─── Signal definitions ─────────────────────────────────
+signals: []

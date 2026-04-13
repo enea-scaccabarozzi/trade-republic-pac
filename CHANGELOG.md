@@ -8,12 +8,24 @@ Do not edit manually.
 
 ## [Unreleased]
 
+### ⚠ BREAKING CHANGES
+
+- **crisis_composite signal params:** Removed `vol_ratio_warning`, `vol_ratio_critical`, `vol_short_window`, `vol_long_window`, `corr_veto_threshold`, `corr_veto_min_days`, `bonds_lookback_days`, `corr_window`, and `bonds_asset_id` from crisis_composite signal params. Added `death_cross_short_window` (default: 50) and `death_cross_long_window` (default: 200). Several threshold defaults were tightened. Users must update their `pac.yaml` to remove the deleted fields.
+
 ### Added
 
+- React + Vite dashboard for the backtester with run management, interactive charts, signal/trade inspection, backtest wizard, and run comparison views
+- Keyboard shortcuts system (`/`, `n`, `?`, `Escape`)
+- 3-level design depth system with dark mode support
+- SPA static file serving with `--static-dir` CLI flag
+- ADR-007: React Dashboard architecture decision record
+- Added interactive web dashboard for backtester (`src/pac/backtester/dashboard/`) with NiceGUI, featuring results viewer, backtest wizard, and multi-run comparison
+- Added `dashboard` dependency group (`nicegui>=2.0`, `plotly>=6.0`) — install with `uv sync --group dashboard`
+- Added `just dashboard` and `just dashboard-sync` Justfile commands
+- Added `dashboard` CLI subcommand to the backtester (`python -m pac.backtester dashboard`)
 - Added `PacAlignmentStrategy` — blended PAC volume shift toward underweight assets using deviation-weighted redistribution
 - Added `CycleExploitStrategy` — hard rebalance triggered on cycle inversion signals, converting PAC cycles into full rebalance orders
 - Added end-to-end integration test for the backtester pipeline covering data → engine → metrics → results
-
 - Added interactive CLI for the backtester (`uv run python -m pac.backtester`) with `run`, `strategies`, `results`, and `show` subcommands
 - Added `just backtest` and `just backtest-sync` Justfile commands for running the backtester CLI
 - Added `typer[all]>=0.12` dev dependency and `questionary>=2.1.1` to the `backtest` dependency group
@@ -31,29 +43,6 @@ Do not edit manually.
 - Added backtester data layer with `MarketDataProvider`, `PriceSeries`, `PriceBar`, `DataRequest` models and filesystem JSON caching (`src/pac/backtester/data/`)
 - Added optional `ticker` field to `AssetConfig` for ISIN→Yahoo Finance ticker mapping (required for backtesting)
 - Added `backtest` dependency group (`yfinance>=1.2.0`) — install with `uv sync --group backtest`
-
-### Changed
-
-- Setup flow reordered: `just setup` now runs TR → Telegram → GCP (was TR → GCP → Telegram) to eliminate manual prompts for bot_token/chat_id during GCP deploy
-- `setup_telegram.py` now supports `--skip-webhook` flag to defer webhook registration
-- GCP deploy (`setup_gcp.py`) now registers Telegram webhook automatically after Cloud Run deployment
-- `setup_telegram.py` CLI uses `@app.callback(invoke_without_command=True)` for default command with `register-webhook` subcommand
-- `app.py` simplified to thin HTTP adapter over `Orchestrator` — no business logic, just auth + request routing
-- Restructured project from flat layout to feature-based directory structure — each submodule (`config/`, `rules/`, `delivery/`, `models/`, `analysis/`, `tr/`, `templates/`, `orchestrator/`) now has co-located `tests/`, `features/`, and `README.md`
-- Renamed `signals/` to `rules/` with `builtin/` subdirectory for built-in rule implementations
-- Moved `telegram/` under `delivery/channels/telegram/`
-- Moved `config.py` to `config/models.py` with re-exporting `__init__.py`
-- Top-level `tests/` now contains only shared fixtures and integration tests
-- Replaced env-var-based `pydantic-settings` configuration with YAML config file (`pac.yaml`)
-- Replaced `AssetClass` enum with dynamic string-based asset IDs defined in config
-- `SignalRule` converted from `typing.Protocol` to `ABC + Generic[ParamsT]` with `__init_subclass__` auto-extraction of `params_model`
-- Signal rules now receive typed params (`ThresholdParams`, `CycleInversionParams`, `PacPlanParams`) instead of raw settings
-- `Signal.metadata` type widened to `dict[str, Any]`
-- Setup scripts (`setup_tr.py`, `setup_telegram.py`) now write environment variables to `.env` after collecting credentials
-- `just setup` meta-recipe calls `just generate-env` at the end to auto-generate `PAC_JOB_SECRET`
-
-### Added
-
 - Added `just setup-webhook` command for standalone webhook registration after separate Telegram + GCP setup
 - Added `register-webhook` subcommand to `setup_telegram.py` — reads cached Telegram + GCP data, registers webhook, updates `.env`
 - Added `Orchestrator` class (`src/pac/orchestrator/`) for framework-agnostic signal dispatch with `from_settings()` factory
@@ -88,6 +77,55 @@ Do not edit manually.
 - Added `.pac/` cache directory for setup script state (gitignored)
 - Added dev dependencies: typer, rich, telethon
 - Added `just generate-env` command to regenerate `.env` from cached setup results (`.pac/*.json`)
+- Added `MarketContext` protocol (`src/pac/market_context.py`) — date-aware access to historical price data for signal rules, with look-ahead protection for backtesting
+- Added `LiveMarketContext` production implementation (`src/pac/live_market_context.py`) — wraps yfinance/`MarketDataProvider` with lazy imports
+- Added `BacktestMarketContext` in backtester engine — date-filtered view of pre-loaded price data (zero look-ahead bias)
+- Added `PriceSeries`, `PriceBar`, `Interval`, `DataRequest` shared models to `src/pac/models/market_data.py` (moved from backtester-only scope)
+- Added 6 crisis detection signal rules in `src/pac/rules/builtin/`: `equity_drawdown` (drawdown depth and velocity), `gold_equity_divergence` (flight-to-safety flow), `volatility_regime` (short/long vol regime shifts), `relative_strength` (gold/equity RS ratio breakout), `death_cross` (SMA 50/200 crossover), `crisis_composite` (N-of-M voting with Type C bond-equity correlation guard)
+- Added `_indicators.py` pure indicator helper module (`src/pac/rules/builtin/_indicators.py`) — shared math for crisis rules
+- Added `crisis_alert.j2` template for crisis composite signal notifications
+- Added `CrisisExploitStrategy` backtest strategy (`src/pac/backtester/strategies/builtin/crisis_exploit.py`) — severity-proportional defensive sell with cooldown, allocation floors, and minimum order filtering
+- Added `reset()` hook to `BacktestStrategy` ABC for per-iteration state cleanup
+- Added `docs/crisis-indicators-research.md` — 30-year historical crisis analysis (1996–2025) with proxy ticker validation
+- Added `backtest/pac-backtest.yaml` — backtest config with proxy ticker chains for 30-year validation
+- Added `docs/research/crisis-strategy-paper.md` — publication-quality research paper on the crisis exploitation strategy with 20-year backtest analysis
+- Added `docs/research/generate_figures.py` — standalone script generating figures and validating claims from the research paper
+- Added `research` dependency group (`matplotlib>=3.8`) for figure generation
+- Added `backtest/ANALYSIS.md` — template for crisis exploitation backtest analysis results
+- Added `scripts/run_backtest_validation.py` — validation script for baseline vs crisis-aware A/B comparison (15 scenarios)
+- Added proxy ticker support: `proxy_ticker` and `proxy_end` fields on `AssetConfig` for stitching pre-ETF data
+- Added BDD feature files and step implementations for all 6 crisis rules, composite rule, and crisis_exploit strategy
+
+### Changed
+
+- Dashboard command now serves built React SPA instead of NiceGUI
+- Dashboard frontend replaced: NiceGUI → React SPA (NiceGUI code moved to `dashboard.legacy/`)
+- **crisis_composite rule:** Replaced dead `volatility_regime` indicator (0% active in 20 years) with `death_cross` (SMA50 < SMA200). Removed Type C bond-equity correlation veto (never fired). Tuned thresholds based on 20-year diagnostic data: drawdown -12% (was -10%), velocity -0.25 (was -0.30), divergence 12% (was 10%), RS breakout 8% (was 5%).
+- **crisis_exploit strategy:** Relaxed `min_severity` to WARNING (was CRITICAL) and `cooldown_days` to 60 (was 90) to enable earlier crisis response.
+- Setup flow reordered: `just setup` now runs TR → Telegram → GCP (was TR → GCP → Telegram) to eliminate manual prompts for bot_token/chat_id during GCP deploy
+- `setup_telegram.py` now supports `--skip-webhook` flag to defer webhook registration
+- GCP deploy (`setup_gcp.py`) now registers Telegram webhook automatically after Cloud Run deployment
+- `setup_telegram.py` CLI uses `@app.callback(invoke_without_command=True)` for default command with `register-webhook` subcommand
+- `app.py` simplified to thin HTTP adapter over `Orchestrator` — no business logic, just auth + request routing
+- Restructured project from flat layout to feature-based directory structure — each submodule (`config/`, `rules/`, `delivery/`, `models/`, `analysis/`, `tr/`, `templates/`, `orchestrator/`) now has co-located `tests/`, `features/`, and `README.md`
+- Renamed `signals/` to `rules/` with `builtin/` subdirectory for built-in rule implementations
+- Moved `telegram/` under `delivery/channels/telegram/`
+- Moved `config.py` to `config/models.py` with re-exporting `__init__.py`
+- Top-level `tests/` now contains only shared fixtures and integration tests
+- Replaced env-var-based `pydantic-settings` configuration with YAML config file (`pac.yaml`)
+- Replaced `AssetClass` enum with dynamic string-based asset IDs defined in config
+- `SignalRule` converted from `typing.Protocol` to `ABC + Generic[ParamsT]` with `__init_subclass__` auto-extraction of `params_model`
+- Signal rules now receive typed params (`ThresholdParams`, `CycleInversionParams`, `PacPlanParams`) instead of raw settings
+- `Signal.metadata` type widened to `dict[str, Any]`
+- Setup scripts (`setup_tr.py`, `setup_telegram.py`) now write environment variables to `.env` after collecting credentials
+- `just setup` meta-recipe calls `just generate-env` at the end to auto-generate `PAC_JOB_SECRET`
+- `SignalRule.evaluate()` now accepts optional `market_ctx: MarketContext | None` parameter — existing rules unaffected (defaults to `None`)
+- `SignalRegistry.evaluate_signal()` passes `MarketContext` to rules when available
+- `BacktestSimulator` creates and passes `BacktestMarketContext` to signal rules per time step
+- `Orchestrator` creates and passes `LiveMarketContext` for production signal dispatch
+- `PacPlanParams.day_of_month` default changed from `14` to `16`
+- `CycleInversionParams.min_pct` default changed from `2.0` to `3.0`
+- 5 builtin `.j2` templates (was 4): added `crisis_alert`
 
 ### Fixed
 

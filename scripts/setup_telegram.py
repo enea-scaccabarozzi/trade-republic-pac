@@ -509,7 +509,7 @@ def setup(
                 webhook_url = _detect_webhook_url()
                 if webhook_url is None:
                     webhook_url = Prompt.ask(
-                        "Webhook URL" " (e.g. https://your-service.run.app/webhook)",
+                        "Webhook URL (e.g. https://your-service.run.app/webhook)",
                         console=console,
                     )
                 webhook_secret = secrets.token_hex(32)
@@ -529,7 +529,7 @@ def setup(
 
             if skip_webhook:
                 print_success(
-                    "Telegram Bot Setup Complete" " (recovered, webhook pending)",
+                    "Telegram Bot Setup Complete (recovered, webhook pending)",
                     f"Bot:      @{bot_username_cached}\n"
                     f"Chat ID:  {chat_id}\n\n"
                     "[bold].env updated[/bold] with"

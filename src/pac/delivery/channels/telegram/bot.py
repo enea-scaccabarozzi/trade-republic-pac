@@ -122,7 +122,7 @@ async def _handle_rebalance(
         return
 
     try:
-        snapshot, report = await orchestrator.get_portfolio_status()
+        signals, _snapshot, _report = await orchestrator.evaluate_all_signals()
     except TRSessionExpiredError:
         logger.exception("rebalance_session_expired")
         await update.message.reply_text(  # type: ignore[union-attr]
@@ -145,7 +145,6 @@ async def _handle_rebalance(
         )
         return
 
-    signals = orchestrator.registry.evaluate_all(report, snapshot)
     text = format_signal_alerts(signals)
     await update.message.reply_text(  # type: ignore[union-attr]
         text,

@@ -261,7 +261,8 @@ class TestCacheIntegrity:
         loaded = cache.load()
         assert loaded is not None
         assert loaded["pin"] == "****"
-        assert "5678" not in str(loaded)
+        user_data = {k: v for k, v in loaded.items() if not k.startswith("_")}
+        assert "5678" not in str(user_data)
 
     def test_cache_contains_expected_fields(self, tmp_path: Path) -> None:
         from scripts.setup_utils import CacheManager

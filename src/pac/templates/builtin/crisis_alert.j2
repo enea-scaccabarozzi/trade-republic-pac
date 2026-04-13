@@ -1,0 +1,15 @@
+{# Expected data: signal (Signal), indicators (dict), active_count (int),
+   min_required (int) #}
+{{ emoji(signal.severity.value) }} {{ bold("CRISIS ALERT" ~ literal(":") ~ " " ~ escape(signal.name)) }}
+Severity{{ literal(":") }} {{ code(signal.severity.value | upper) }}
+
+{{ escape(signal.message) }}
+
+{{ bold("Indicator Readings") }}{{ literal(":") }}
+{% for name, ind in indicators.items() %}
+{% if ind.active %}{{ emoji("warning") }}{% else %}{{ literal("⚪") }}{% endif %} {{ bold(escape(name)) }}{{ literal(":") }} {% if name == "death_cross" %}{% if ind.active %}{{ escape("Bearish") }}{% else %}{{ escape("Bullish") }}{% endif %}{% if ind.value is not none and ind.active %} {{ literal("(") }}{{ escape("fresh cross") }}{{ literal(")") }}{% endif %}{% else %}{{ escape(ind.value | numberfmt) }}{% endif %} {% if ind.active %}{{ literal("(") }}{{ code(ind.severity | upper) }}{{ literal(")") }}{% endif %}
+{% endfor %}
+
+Active indicators{{ literal(":") }} {{ escape(active_count | numberfmt) }}{{ literal("/") }}{{ escape(min_required | numberfmt) }} required
+
+{{ italic(escape(signal.triggered_at | datefmt)) }}

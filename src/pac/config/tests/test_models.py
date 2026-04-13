@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
-from pac.config.models import AppConfig, AssetConfig, BrokerConfig, Settings
+from pac.config.models import (
+    AppConfig,
+    AssetConfig,
+    BrokerConfig,
+    ProxySpec,
+    Settings,
+)
 
 
 def _base_settings_data(**overrides: Any) -> dict[str, Any]:
@@ -358,3 +365,121 @@ class TestSettingsEdgeCases:
         data = _base_settings_data()
         settings = Settings.model_validate(data)
         assert all(a.ticker is None for a in settings.assets)
+
+
+class TestProxySpec:
+    def test_valid_spec(self) -> None:
+        spec = ProxySpec(ticker="^SP500TR", end=date(2009, 9, 24))
+
+        assert spec.ticker == "^SP500TR"
+        assert spec.end == date(2009, 9, 24)
+        assert spec.currency is None
+
+    def test_with_currency(self) -> None:
+        spec = ProxySpec(ticker="^SP500TR", end=date(2009, 9, 24), currency="USD")
+
+        assert spec.currency == "USD"
+
+
+class TestAssetConfigProxyChain:
+    def test_empty_chain_default(self) -> None:
+        cfg = AssetConfig(
+            id="stocks",
+            name="S",
+            isin="IE00BK5BQT80",
+            target_pct=Decimal("50"),
+        )
+
+        assert cfg.proxy_chain == []
+
+    def test_single_element_chain(self) -> None:
+        cfg = AssetConfig(
+            id="stocks",
+            name="S",
+            isin="IE00BK5BQT80",
+            target_pct=Decimal("50"),
+            proxy_chain=[
+                ProxySpec(ticker="^SP500TR", end=date(2009, 9, 24)),
+            ],
+        )
+
+        assert len(cfg.proxy_chain) == 1
+
+    def test_multi_element_chain_in_order(self) -> None:
+        cfg = AssetConfig(
+            id="stocks",
+            name="S",
+            isin="IE00BK5BQT80",
+            target_pct=Decimal("50"),
+            proxy_chain=[
+                ProxySpec(
+                    ticker="^SP500TR",
+                    end=date(2009, 9, 24),
+                    currency="USD",
+                ),
+                ProxySpec(
+                    ticker="IWDA.AS",
+                    end=date(2019, 7, 28),
+                    currency="EUR",
+                ),
+            ],
+        )
+
+        assert len(cfg.proxy_chain) == 2
+
+    def test_out_of_order_chain_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="chronologically"):
+            AssetConfig(
+                id="stocks",
+                name="S",
+                isin="IE00BK5BQT80",
+                target_pct=Decimal("50"),
+                proxy_chain=[
+                    ProxySpec(ticker="IWDA.AS", end=date(2019, 7, 28)),
+                    ProxySpec(ticker="^SP500TR", end=date(2009, 9, 24)),
+                ],
+            )
+
+    def test_legacy_proxy_migration(self) -> None:
+        cfg = AssetConfig(
+            id="gold",
+            name="G",
+            isin="IE00B4ND3602",
+            target_pct=Decimal("15"),
+            proxy_ticker="GC=F",
+            proxy_end=date(2004, 11, 17),
+        )
+
+        assert len(cfg.proxy_chain) == 1
+        assert cfg.proxy_chain[0].ticker == "GC=F"
+        assert cfg.proxy_chain[0].end == date(2004, 11, 17)
+
+    def test_legacy_fields_ignored_when_chain_provided(self) -> None:
+        cfg = AssetConfig(
+            id="gold",
+            name="G",
+            isin="IE00B4ND3602",
+            target_pct=Decimal("15"),
+            proxy_ticker="GC=F",
+            proxy_end=date(2004, 11, 17),
+            proxy_chain=[
+                ProxySpec(ticker="XAUUSD", end=date(2010, 1, 1)),
+            ],
+        )
+
+        assert len(cfg.proxy_chain) == 1
+        assert cfg.proxy_chain[0].ticker == "XAUUSD"
+
+    def test_backward_compat_no_proxy_chain_field(self) -> None:
+        data = {
+            "id": "bonds",
+            "name": "Bonds",
+            "isin": "IE00B3F81409",
+            "target_pct": 15,
+            "ticker": "AGG",
+        }
+
+        cfg = AssetConfig.model_validate(data)
+
+        assert cfg.proxy_chain == []
+        assert cfg.currency is None

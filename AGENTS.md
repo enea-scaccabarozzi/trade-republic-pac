@@ -26,6 +26,8 @@ Automated portfolio rebalancing assistant for Trade Republic. Reads portfolio po
 src/pac/
 ├── __main__.py               # Structlog config + uvicorn runner
 ├── app.py                    # Thin HTTP adapter over Orchestrator (webhook, signal, health)
+├── market_context.py         # MarketContext protocol (date-aware price access)
+├── live_market_context.py    # Production MarketContext (yfinance + cache)
 ├── config/                   # Settings loaded from pac.yaml
 │   ├── models.py             # Pydantic config models (AppConfig, BrokerConfig, AssetConfig, etc.)
 │   └── loader.py             # YAML loading + ${ENV_VAR} interpolation
@@ -33,7 +35,7 @@ src/pac/
 ├── tr/                       # TRClient wrapper + tr_session() context manager
 ├── analysis/                 # Deviation calculation, PAC redistribution
 ├── rules/                    # SignalRule ABC+Generic, registry, auto-discovery
-│   └── builtin/              # Threshold, cycle inversion, PAC plan rules
+│   └── builtin/              # Threshold, cycle inversion, PAC plan, crisis detection rules (6 crisis + composite)
 ├── delivery/                 # DeliveryChannel ABC+Generic, RenderedMessage, auto-discovery
 │   ├── base.py               # DeliveryChannel[ConfigT] ABC + RenderedMessage model
 │   ├── discovery.py           # discover_channels() scans channels/ subpackages
@@ -41,7 +43,7 @@ src/pac/
 ├── templates/                # Template engine + format adapters
 │   ├── engine.py             # TemplateEngine — Jinja2 SandboxedEnvironment + adapter injection
 │   └── adapters/             # FormatAdapter ABC + MarkdownV2, PlainText implementations
-│   └── builtin/              # .j2 templates (threshold_alert, cycle_alert, pac_plan, portfolio_status)
+│   └── builtin/              # .j2 templates (threshold_alert, cycle_alert, pac_plan, portfolio_status, crisis_alert)
 └── orchestrator/             # Orchestrator class — framework-agnostic signal dispatch pipeline
 tests/                        # Shared fixtures + integration tests
 docs/                         # Project documentation + ADRs
@@ -82,7 +84,7 @@ Each submodule has co-located `tests/`, `features/`, and `README.md`.
 All Trade Republic API access goes through `tr_session()` (in `src/pac/tr/client.py`). It opens a WebSocket connection, yields a `TRClient`, and closes the connection on exit. Never hold connections open long-term.
 
 ### `SignalRule` ABC + Generic
-Signal rules use `ABC + Generic[ParamsT]` (nominal subtyping). Each rule declares a Pydantic params model via its Generic type arg — `__init_subclass__` auto-extracts `params_model`. Rules are stateless; typed params are passed to `evaluate()`. To add a new rule: subclass `SignalRule[YourParams]`, implement `name` and `evaluate()`, and place it in `src/pac/rules/builtin/`. The registry discovers rules automatically via `discover_rules()`.
+Signal rules use `ABC + Generic[ParamsT]` (nominal subtyping). Each rule declares a Pydantic params model via its Generic type arg — `__init_subclass__` auto-extracts `params_model`. Rules are stateless; typed params are passed to `evaluate()`. `evaluate()` accepts an optional `market_ctx: MarketContext | None` parameter (defaults to `None`); rules that don't need market data ignore it, while crisis rules use it for historical price indicator calculations. To add a new rule: subclass `SignalRule[YourParams]`, implement `name` and `evaluate()`, and place it in `src/pac/rules/builtin/`. The registry discovers rules automatically via `discover_rules()`.
 
 ### `DeliveryChannel` ABC + Generic
 Delivery channels use `ABC + Generic[ConfigT]` (same pattern as `SignalRule`). Each channel declares a Pydantic config model via its Generic type arg — `__init_subclass__` auto-extracts `config_model`. Channels implement `name`, `supported_formats`, and `send()`. Optional lifecycle hooks: `start()`, `stop()`, `process_update()`, `webhook_secret`. Interactive features (commands, keyboards) are channel-specific and not part of the ABC. To add a new channel: subclass `DeliveryChannel[YourConfig]`, implement the abstract methods, place a `channel.py` in `src/pac/delivery/channels/<name>/`. Discovery is automatic via `discover_channels()`.
@@ -104,36 +106,49 @@ All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in
 
 ## Learned Patterns
 
-| Pattern                                                                                                                               | Location                                     | Date    |
-| ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------- |
-| All signal rules subclass `SignalRule` ABC+Generic[ParamsT] (not Protocol)                                                            | `src/pac/rules/base.py`                      | 2026-04 |
-| Rules auto-discovered via `discover_rules()` scanning `pac.rules.builtin`                                                             | `src/pac/rules/discovery.py`                 | 2026-04 |
-| Configuration loaded from YAML (`pac.yaml`) via `load_config()`                                                                       | `src/pac/config/loader.py`                   | 2026-04 |
-| Assets are dynamic string IDs (no `AssetClass` enum)                                                                                  | `src/pac/config/models.py`                   | 2026-04 |
-| TR connections are per-request via `tr_session()` context manager                                                                     | `src/pac/tr/client.py`                       | 2026-04 |
-| Telegram webhook validated via `X-Telegram-Bot-Api-Secret-Token` header                                                               | `src/pac/app.py`                             | 2026-04 |
-| Job endpoints validated via `X-Job-Secret` header with `hmac.compare_digest`                                                          | `src/pac/app.py`                             | 2026-04 |
-| Delivery channels subclass `DeliveryChannel` ABC+Generic[ConfigT]                                                                     | `src/pac/delivery/base.py`                   | 2026-04 |
-| Channels auto-discovered via `discover_channels()` scanning channel packages                                                          | `src/pac/delivery/discovery.py`              | 2026-04 |
-| `RenderedMessage` is the channel-agnostic output model for delivery                                                                   | `src/pac/delivery/base.py`                   | 2026-04 |
-| Interactive features (commands, keyboards) are Telegram-specific, not in ABC                                                          | `src/pac/delivery/channels/telegram/`        | 2026-04 |
-| `TemplateEngine` uses Jinja2 `SandboxedEnvironment` with adapter-injected globals                                                     | `src/pac/templates/engine.py`                | 2026-04 |
-| `FormatAdapter` ABC defines channel-agnostic formatting (bold, escape, literal, etc.)                                                 | `src/pac/templates/adapters/base.py`         | 2026-04 |
-| `MarkdownV2Adapter` and `PlainTextAdapter` are the two built-in adapters                                                              | `src/pac/templates/adapters/`                | 2026-04 |
-| 4 builtin .j2 templates: threshold_alert, cycle_alert, pac_plan, portfolio_status                                                     | `src/pac/templates/builtin/`                 | 2026-04 |
-| `literal()` escapes structural characters that appear as fixed text in templates                                                      | `src/pac/templates/adapters/base.py`         | 2026-04 |
-| `Orchestrator.from_settings()` wires config → rules → templates → channels                                                            | `src/pac/orchestrator/orchestrator.py`       | 2026-04 |
-| `app.py` is a thin HTTP adapter; all business logic lives in `Orchestrator`                                                           | `src/pac/app.py`                             | 2026-04 |
-| Dynamic signal routing via `POST /jobs/signal/{signal_name}`                                                                          | `src/pac/app.py`                             | 2026-04 |
-| `dispatch_signal()` runs the full pipeline: evaluate → render → send                                                                  | `src/pac/orchestrator/orchestrator.py`       | 2026-04 |
-| `build_template_data()` classmethod on `SignalRule` produces template context                                                         | `src/pac/rules/base.py`                      | 2026-04 |
-| `set_orchestrator()` on `DeliveryChannel` injects orchestrator for interactive DI                                                     | `src/pac/delivery/base.py`                   | 2026-04 |
-| Serverless-first lifespan — zero network calls at startup                                                                             | `src/pac/app.py`                             | 2026-04 |
-| All backtest strategies subclass `BacktestStrategy` ABC+Generic[ParamsT] (stateful, unlike SignalRule)                                | `src/pac/backtester/strategies/base.py`      | 2026-04 |
-| Strategies auto-discovered via `discover_strategies()` scanning `pac.backtester.strategies.builtin`                                   | `src/pac/backtester/strategies/discovery.py` | 2026-04 |
-| `BacktestSimulator` runs Monte Carlo (N iterations); price data must be pre-loaded as `dict[ticker, PriceSeries]`                     | `src/pac/backtester/engine/simulator.py`     | 2026-04 |
-| Backtester reuses production `SignalRule` instances against synthetic `PortfolioSnapshot` — rules never know they're being backtested | `src/pac/backtester/engine/simulator.py`     | 2026-04 |
-| Results persisted as timestamped JSON to `.pac/backtests/` via `ResultStore`; schema includes equity curve bands (P5/median/P95)      | `src/pac/backtester/results/store.py`        | 2026-04 |
-| Metrics computed via quantstats per MC iteration, aggregated to P5/median/P95 via `MetricsCalculator`                                 | `src/pac/backtester/metrics/calculator.py`   | 2026-04 |
-| Assets need `ticker: EUNL.DE` field in `pac.yaml` for yfinance resolution; `resolve_tickers()` errors on missing tickers              | `src/pac/backtester/data/provider.py`        | 2026-04 |
-| Backtester is an optional isolated module — zero imports from main `pac` app; install with `just backtest-sync`                       | `src/pac/backtester/`                        | 2026-04 |
+| Pattern                                                                                                                                            | Location                                                      | Date    |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------- |
+| All signal rules subclass `SignalRule` ABC+Generic[ParamsT] (not Protocol)                                                                         | `src/pac/rules/base.py`                                       | 2026-04 |
+| Rules auto-discovered via `discover_rules()` scanning `pac.rules.builtin`                                                                          | `src/pac/rules/discovery.py`                                  | 2026-04 |
+| Configuration loaded from YAML (`pac.yaml`) via `load_config()`                                                                                    | `src/pac/config/loader.py`                                    | 2026-04 |
+| Assets are dynamic string IDs (no `AssetClass` enum)                                                                                               | `src/pac/config/models.py`                                    | 2026-04 |
+| TR connections are per-request via `tr_session()` context manager                                                                                  | `src/pac/tr/client.py`                                        | 2026-04 |
+| Telegram webhook validated via `X-Telegram-Bot-Api-Secret-Token` header                                                                            | `src/pac/app.py`                                              | 2026-04 |
+| Job endpoints validated via `X-Job-Secret` header with `hmac.compare_digest`                                                                       | `src/pac/app.py`                                              | 2026-04 |
+| Delivery channels subclass `DeliveryChannel` ABC+Generic[ConfigT]                                                                                  | `src/pac/delivery/base.py`                                    | 2026-04 |
+| Channels auto-discovered via `discover_channels()` scanning channel packages                                                                       | `src/pac/delivery/discovery.py`                               | 2026-04 |
+| `RenderedMessage` is the channel-agnostic output model for delivery                                                                                | `src/pac/delivery/base.py`                                    | 2026-04 |
+| Interactive features (commands, keyboards) are Telegram-specific, not in ABC                                                                       | `src/pac/delivery/channels/telegram/`                         | 2026-04 |
+| `TemplateEngine` uses Jinja2 `SandboxedEnvironment` with adapter-injected globals                                                                  | `src/pac/templates/engine.py`                                 | 2026-04 |
+| `FormatAdapter` ABC defines channel-agnostic formatting (bold, escape, literal, etc.)                                                              | `src/pac/templates/adapters/base.py`                          | 2026-04 |
+| `MarkdownV2Adapter` and `PlainTextAdapter` are the two built-in adapters                                                                           | `src/pac/templates/adapters/`                                 | 2026-04 |
+| 5 builtin .j2 templates: threshold_alert, cycle_alert, pac_plan, portfolio_status, crisis_alert                                                    | `src/pac/templates/builtin/`                                  | 2026-04 |
+| `literal()` escapes structural characters that appear as fixed text in templates                                                                   | `src/pac/templates/adapters/base.py`                          | 2026-04 |
+| `Orchestrator.from_settings()` wires config → rules → templates → channels                                                                         | `src/pac/orchestrator/orchestrator.py`                        | 2026-04 |
+| `app.py` is a thin HTTP adapter; all business logic lives in `Orchestrator`                                                                        | `src/pac/app.py`                                              | 2026-04 |
+| Dynamic signal routing via `POST /jobs/signal/{signal_name}`                                                                                       | `src/pac/app.py`                                              | 2026-04 |
+| `dispatch_signal()` runs the full pipeline: evaluate → render → send                                                                               | `src/pac/orchestrator/orchestrator.py`                        | 2026-04 |
+| `build_template_data()` classmethod on `SignalRule` produces template context                                                                      | `src/pac/rules/base.py`                                       | 2026-04 |
+| `set_orchestrator()` on `DeliveryChannel` injects orchestrator for interactive DI                                                                  | `src/pac/delivery/base.py`                                    | 2026-04 |
+| Serverless-first lifespan — zero network calls at startup                                                                                          | `src/pac/app.py`                                              | 2026-04 |
+| All backtest strategies subclass `BacktestStrategy` ABC+Generic[ParamsT] (stateful, unlike SignalRule)                                             | `src/pac/backtester/strategies/base.py`                       | 2026-04 |
+| Strategies auto-discovered via `discover_strategies()` scanning `pac.backtester.strategies.builtin`                                                | `src/pac/backtester/strategies/discovery.py`                  | 2026-04 |
+| `BacktestSimulator` runs Monte Carlo (N iterations); price data must be pre-loaded as `dict[ticker, PriceSeries]`                                  | `src/pac/backtester/engine/simulator.py`                      | 2026-04 |
+| Backtester reuses production `SignalRule` instances against synthetic `PortfolioSnapshot` — rules never know they're being backtested              | `src/pac/backtester/engine/simulator.py`                      | 2026-04 |
+| Results persisted as timestamped JSON to `.pac/backtests/` via `ResultStore`; schema includes equity curve bands (P5/median/P95)                   | `src/pac/backtester/results/store.py`                         | 2026-04 |
+| Metrics computed via quantstats per MC iteration, aggregated to P5/median/P95 via `MetricsCalculator`                                              | `src/pac/backtester/metrics/calculator.py`                    | 2026-04 |
+| Assets need `ticker: EUNL.DE` field in `pac.yaml` for yfinance resolution; `resolve_tickers()` errors on missing tickers                           | `src/pac/backtester/data/provider.py`                         | 2026-04 |
+| Backtester is an optional isolated module — zero imports from main `pac` app; install with `just backtest-sync`                                    | `src/pac/backtester/`                                         | 2026-04 |
+| Dashboard uses NiceGUI with `@ui.page` route registration via side-effect imports                                                                  | `src/pac/backtester/dashboard/app.py`                         | 2026-04 |
+| Dashboard state cached via `DashboardState` wrapper around `ResultStore`                                                                           | `src/pac/backtester/dashboard/state.py`                       | 2026-04 |
+| Dashboard is optional — `dashboard` dependency group, lazy imports gated by try/except                                                             | `pyproject.toml`, `dashboard/__main__.py`                     | 2026-04 |
+| `run_pipeline()` in `runner.py` is the shared backtest pipeline (CLI + dashboard)                                                                  | `src/pac/backtester/runner.py`                                | 2026-04 |
+| Plotly chart builders are pure functions in `charts.py`, decoupled from NiceGUI rendering                                                          | `src/pac/backtester/dashboard/charts.py`                      | 2026-04 |
+| `MarketContext` protocol provides date-aware price access; production (`LiveMarketContext`) and backtest (`BacktestMarketContext`) implementations | `src/pac/market_context.py`, `src/pac/live_market_context.py` | 2026-04 |
+| Crisis rules require `MarketContext` — return empty list when `market_ctx is None` (graceful degradation)                                          | `src/pac/rules/builtin/`                                      | 2026-04 |
+| Pure indicator math lives in `_indicators.py` — rules and composite both call these functions                                                      | `src/pac/rules/builtin/_indicators.py`                        | 2026-04 |
+| `CrisisCompositeRule` uses N-of-M voting (default 3/5); no veto guard                                                                              | `src/pac/rules/builtin/crisis_composite.py`                   | 2026-04 |
+| `CrisisExploitStrategy` is stateful with cooldown, severity-proportional sell fractions, allocation floors                                         | `src/pac/backtester/strategies/builtin/crisis_exploit.py`     | 2026-04 |
+| `BacktestStrategy.reset()` hook clears per-iteration state (e.g., cooldown dates)                                                                  | `src/pac/backtester/strategies/base.py`                       | 2026-04 |
+| Proxy tickers (`proxy_ticker`, `proxy_end`) on `AssetConfig` enable 30+ year backtests with pre-ETF data                                           | `src/pac/config/models.py`                                    | 2026-04 |
+| `PriceSeries`/`PriceBar`/`Interval` are shared vocabulary in `pac.models.market_data`, re-exported from `pac.backtester.data.models`               | `src/pac/models/market_data.py`                               | 2026-04 |

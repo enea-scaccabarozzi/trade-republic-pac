@@ -18,6 +18,7 @@ Reads your Trade Republic portfolio via the `pytr` library (read-only), detects 
 - **Monthly PAC redistribution** — On a configurable day of the month, calculates optimal savings plan volumes from available balance
 - **Telegram bot** — `/status`, `/rebalance`, `/redistribute`, `/help` commands with inline keyboards
 - **Configurable target allocation** — Default 70/15/15, fully adjustable via environment variables
+- **Crisis detection** — Composite crisis indicator (N-of-M voting across drawdown, volatility, gold divergence, relative strength, death cross) with Type C bond-equity correlation guard
 - **Self-hosted Docker container** — Single image, deploy anywhere
 
 ## Repository Structure
@@ -26,12 +27,14 @@ Reads your Trade Republic portfolio via the `pytr` library (read-only), detects 
 src/pac/
 ├── __main__.py               # Structlog config + uvicorn runner
 ├── app.py                    # Starlette ASGI app (webhook, job, health endpoints)
+├── market_context.py         # MarketContext protocol (date-aware price access)
+├── live_market_context.py    # Production MarketContext (yfinance + cache)
 ├── config/                   # Settings loaded from pac.yaml (YAML + pydantic validation)
-├── models/                   # Pydantic data models (portfolio, signals)
+├── models/                   # Pydantic data models (portfolio, signals, market data)
 ├── tr/                       # TRClient wrapper + tr_session() context manager
 ├── analysis/                 # Deviation calculation, PAC redistribution
-├── rules/                    # SignalRule protocol, registry, builtin rules
-│   └── builtin/              # Threshold, cycle inversion rules
+├── rules/                    # SignalRule ABC+Generic, registry, builtin rules
+│   └── builtin/              # Threshold, cycle inversion, PAC plan, crisis detection rules
 ├── delivery/                 # Delivery channel abstraction
 │   └── channels/telegram/    # Telegram bot, formatting, keyboards
 ├── templates/                # Template engine + format adapters
@@ -457,8 +460,75 @@ just backtest
 | `strategies` | List all available strategies                          |
 | `results`    | List saved backtest results                            |
 | `show`       | Display metrics and equity curve for a saved result    |
+| `dashboard`  | Launch the web dashboard for visual result exploration |
 
 Tickers for historical data are configured alongside each asset in `pac.yaml`. See [`pac.yaml.example`](pac.yaml.example) for reference.
+
+Assets support `proxy_ticker` and `proxy_end` fields for extending backtests beyond ETF inception dates. See the [backtester README](src/pac/backtester/README.md#proxy-tickers) for details.
+
+For a detailed analysis of the crisis exploitation strategy, see the [research paper](docs/research/crisis-strategy-paper.md) with companion [figure generation script](docs/research/generate_figures.py).
+
+### Web Dashboard
+
+Interactive web UI for exploring backtest results, running backtests, and comparing runs.
+
+#### Quick Start
+
+```bash
+# Install dependencies (Python + Node)
+just dashboard-sync
+just dashboard-ui-sync
+
+# Build the frontend
+just dashboard-ui-build
+
+# Start the dashboard
+just dashboard
+```
+
+The dashboard opens at `http://localhost:8090` by default.
+
+#### Development
+
+For active development, run the API and frontend in separate terminals:
+
+```bash
+# Terminal 1 — API server with hot-reload
+just dashboard-dev
+
+# Terminal 2 — Vite dev server (proxies /api to :8090)
+just dashboard-ui-dev
+```
+
+The Vite dev server runs at `http://localhost:5173` with HMR.
+
+#### Dashboard Commands
+
+| Command                       | Description                               |
+| ----------------------------- | ----------------------------------------- |
+| `just dashboard-sync`         | Install Python dashboard dependencies     |
+| `just dashboard-ui-sync`      | Install Node dashboard dependencies (bun) |
+| `just dashboard-ui-build`     | Build frontend for production             |
+| `just dashboard-ui-dev`       | Start Vite dev server with HMR            |
+| `just dashboard-dev`          | Start API server with hot-reload          |
+| `just dashboard`              | Start production dashboard                |
+| `just dashboard-ui-lint`      | Lint frontend code (Biome)                |
+| `just dashboard-ui-format`    | Format frontend code (Biome)              |
+| `just dashboard-ui-typecheck` | Type-check frontend (TypeScript)          |
+| `just dashboard-ui-validate`  | Run all frontend checks (lint + typecheck) |
+
+#### Keyboard Shortcuts
+
+Press `?` anywhere in the dashboard to see all available shortcuts.
+
+| Shortcut | Action                |
+| -------- | --------------------- |
+| `g h`    | Go to Dashboard Home  |
+| `g r`    | Go to Run Backtest    |
+| `g c`    | Go to Compare         |
+| `?`      | Keyboard shortcuts    |
+| `n`      | New backtest (from /) |
+| `/`      | Focus search (from /) |
 
 ## Extending
 

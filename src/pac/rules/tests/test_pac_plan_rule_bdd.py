@@ -138,3 +138,8 @@ def allocations_sum_to_100(signals: list[Signal]) -> None:
     allocations = signals[0].metadata["allocations"]
     total_pct = sum(a["pct_of_budget"] for a in allocations.values())
     assert abs(total_pct - 100.0) < 0.01
+
+
+@then(parsers.parse("the signal metadata contains day_of_month of {day:d}"))
+def metadata_day_of_month(signals: list[Signal], day: int) -> None:
+    assert signals[0].metadata["day_of_month"] == day

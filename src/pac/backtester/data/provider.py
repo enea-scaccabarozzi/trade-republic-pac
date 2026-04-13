@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import structlog
 
+from pac.backtester.data.fx import convert_to_eur
 from pac.backtester.data.models import (
     DataRequest,
+    Interval,
     PriceBar,
     PriceSeries,
 )
 from pac.config import Settings
+
+if TYPE_CHECKING:
+    from pac.config.models import ProxySpec
 
 try:
     import yfinance as yf
@@ -170,6 +175,199 @@ class MarketDataProvider:
             Mapping of ticker → PriceSeries.
         """
         return {req.ticker: self.fetch(req) for req in requests}
+
+    def fetch_with_proxy(
+        self,
+        ticker: str,
+        start: date,
+        end: date,
+        proxy_chain: list[ProxySpec] | None = None,
+        primary_currency: str | None = None,
+        # Legacy compat (ignored if proxy_chain provided):
+        proxy_ticker: str | None = None,
+        proxy_end: date | None = None,
+    ) -> PriceSeries:
+        """Fetch price data, stitching chained proxy data for early dates.
+
+        Two-pass right-to-left algorithm:
+          Pass 1 — Build segment specs, fetch each independently, FX-convert.
+          Pass 2 — Right-to-left normalization anchored to primary prices.
+
+        Backward-compatible: if proxy_chain is None, falls back to
+        legacy proxy_ticker/proxy_end behavior (converted to chain of 1).
+        """
+        from pac.config.models import ProxySpec
+
+        # Legacy fallback
+        if proxy_chain is None and proxy_ticker and proxy_end:
+            proxy_chain = [ProxySpec(ticker=proxy_ticker, end=proxy_end)]
+
+        if not proxy_chain or start > proxy_chain[-1].end:
+            # No proxy needed — entire range is primary
+            series = self.fetch(DataRequest(ticker=ticker, start=start, end=end))
+            if primary_currency and primary_currency != "EUR":
+                series = convert_to_eur(series, primary_currency, self.fetch)
+            return series
+
+        # ── Pass 1: Build segment specs and fetch each ──
+        SegmentSpec = tuple[
+            str, date, date, str | None
+        ]  # (ticker, start, end, currency)
+        segment_specs: list[SegmentSpec] = []
+
+        for i, spec in enumerate(proxy_chain):
+            seg_start = start if i == 0 else proxy_chain[i - 1].end + timedelta(days=1)
+            seg_end = min(spec.end, end)
+            if seg_start <= seg_end:
+                segment_specs.append((spec.ticker, seg_start, seg_end, spec.currency))
+
+        # Primary segment (after last proxy)
+        if end > proxy_chain[-1].end:
+            primary_start = proxy_chain[-1].end + timedelta(days=1)
+            segment_specs.append((ticker, primary_start, end, primary_currency))
+
+        # Fetch & FX-convert each segment independently
+        segments: list[list[PriceBar]] = []
+        for seg_ticker, seg_start, seg_end, seg_currency in segment_specs:
+            series = self.fetch(
+                DataRequest(ticker=seg_ticker, start=seg_start, end=seg_end)
+            )
+            if seg_currency and seg_currency != "EUR":
+                series = convert_to_eur(series, seg_currency, self.fetch)
+            segments.append(list(series.bars))
+
+        if not segments:
+            return PriceSeries(ticker=ticker, interval=Interval.DAILY, bars=[])
+
+        # ── Pass 2: Right-to-left normalization ──
+        for i in range(len(segments) - 2, -1, -1):
+            left_seg = segments[i]
+            right_seg = segments[i + 1]
+
+            if not left_seg or not right_seg:
+                continue
+
+            # Validate continuity at this handoff boundary
+            handoff_date = segment_specs[i][2]
+            validate_handoff(
+                proxy_bars=left_seg,
+                primary_bars=right_seg,
+                handoff_date=handoff_date,
+                proxy_ticker=segment_specs[i][0],
+                primary_ticker=segment_specs[i + 1][0],
+            )
+
+            if left_seg[-1].close == 0:
+                msg = f"Proxy close price is 0 on {left_seg[-1].date}, cannot normalize"
+                raise ValueError(msg)
+
+            ratio = right_seg[0].close / left_seg[-1].close
+
+            segments[i] = [
+                PriceBar(
+                    date=b.date,
+                    open=b.open * ratio,
+                    high=b.high * ratio,
+                    low=b.low * ratio,
+                    close=b.close * ratio,
+                    volume=b.volume,
+                )
+                for b in left_seg
+            ]
+
+        # Concatenate in chronological order
+        all_bars: list[PriceBar] = []
+        for seg in segments:
+            all_bars.extend(seg)
+
+        return PriceSeries(ticker=ticker, interval=Interval.DAILY, bars=all_bars)
+
+
+_MAX_GAP_DAYS = 5  # Max allowed gap between proxy end and primary start
+
+
+def normalize_and_stitch(
+    primary_bars: list[PriceBar],
+    proxy_bars: list[PriceBar],
+    handoff_date: date,
+) -> list[PriceBar]:
+    """Stitch proxy bars onto primary bars with ratio-based normalization.
+
+    At the handoff point:
+    1. Find the last proxy bar on or before handoff_date
+    2. Find the first primary bar after handoff_date
+    3. Compute ratio = primary_first_close / proxy_last_close
+    4. Scale ALL proxy bar prices by this ratio
+    5. Concatenate: scaled_proxy_bars + primary_bars
+    """
+    proxy_before = [b for b in proxy_bars if b.date <= handoff_date]
+    primary_after = [b for b in primary_bars if b.date > handoff_date]
+
+    if not proxy_before or not primary_after:
+        return proxy_before + primary_after
+
+    proxy_last_close = proxy_before[-1].close
+    primary_first_close = primary_after[0].close
+
+    if proxy_last_close == 0:
+        msg = f"Proxy close price is 0 on {proxy_before[-1].date}, cannot normalize"
+        raise ValueError(msg)
+
+    ratio = primary_first_close / proxy_last_close
+
+    scaled_proxy = [
+        PriceBar(
+            date=b.date,
+            open=b.open * ratio,
+            high=b.high * ratio,
+            low=b.low * ratio,
+            close=b.close * ratio,
+            volume=b.volume,
+        )
+        for b in proxy_before
+    ]
+
+    return scaled_proxy + primary_after
+
+
+def validate_handoff(
+    proxy_bars: list[PriceBar],
+    primary_bars: list[PriceBar],
+    handoff_date: date,
+    proxy_ticker: str,
+    primary_ticker: str,
+) -> None:
+    """Validate data continuity at a proxy→primary handoff point.
+
+    Raises:
+        ValueError: If gap between last proxy bar and first primary bar
+                     exceeds _MAX_GAP_DAYS.
+    """
+    proxy_end_bars = [b for b in proxy_bars if b.date <= handoff_date]
+    primary_start_bars = [b for b in primary_bars if b.date > handoff_date]
+
+    if not proxy_end_bars:
+        msg = (
+            f"No proxy data for '{proxy_ticker}' on or before handoff "
+            f"date {handoff_date}"
+        )
+        raise ValueError(msg)
+
+    if not primary_start_bars:
+        msg = (
+            f"No primary data for '{primary_ticker}' after handoff date {handoff_date}"
+        )
+        raise ValueError(msg)
+
+    gap = (primary_start_bars[0].date - proxy_end_bars[-1].date).days
+    if gap > _MAX_GAP_DAYS:
+        msg = (
+            f"Data gap of {gap} days at handoff {handoff_date}: "
+            f"'{proxy_ticker}' ends {proxy_end_bars[-1].date}, "
+            f"'{primary_ticker}' starts {primary_start_bars[0].date}. "
+            f"Max allowed: {_MAX_GAP_DAYS} days."
+        )
+        raise ValueError(msg)
 
 
 def resolve_tickers(settings: Settings) -> dict[str, str]:

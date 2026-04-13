@@ -17,7 +17,7 @@ Feature: Cycle Inversion Rule
     And the signal identifies stocks as overweight and bonds as underweight
 
   Scenario: Below minimum threshold yields no signal
-    Given all deviations are below 2pp
+    Given all deviations are below 3pp
     When the cycle inversion rule evaluates with default params
     Then no signals are emitted
 
@@ -30,3 +30,13 @@ Feature: Cycle Inversion Rule
     Given deviations of 1.5pp in opposing directions
     When the cycle inversion rule evaluates with min_pct=1.0
     Then a cycle inversion signal is emitted
+
+  Scenario: Deviations at exactly the minimum threshold trigger signal
+    Given deviations of 3pp in opposing directions
+    When the cycle inversion rule evaluates with default params
+    Then a cycle inversion signal is emitted
+
+  Scenario: Deviations in the 2-3pp gap do not trigger with new default
+    Given deviations of 2.5pp in opposing directions
+    When the cycle inversion rule evaluates with default params
+    Then no signals are emitted

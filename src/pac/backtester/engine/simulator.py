@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -13,9 +14,17 @@ from pac.backtester.config import BacktestConfig
 from pac.backtester.data.models import PriceBar, PriceSeries
 from pac.backtester.engine.actions import ExecutedTrade
 from pac.backtester.engine.clock import SimulationClock
+from pac.backtester.engine.market_context import BacktestMarketContext
 from pac.backtester.engine.portfolio import SimulatedPortfolio, SimulatedPosition
+from pac.backtester.results.models import (
+    IndicatorDataPoint,
+    IndicatorMeta,
+    SignalRecord,
+    StrategyEvent,
+)
 from pac.backtester.strategies.base import BacktestStrategy
 from pac.config import Settings
+from pac.config.models import SignalConfig
 from pac.models.portfolio import PortfolioSnapshot
 from pac.models.signals import Signal
 from pac.rules.registry import SignalRegistry
@@ -39,6 +48,9 @@ class IterationResult(BaseModel, frozen=True):
     daily_values: list[DayResult]
     trades: list[ExecutedTrade]
     final_value: Decimal
+    indicator_snapshots: dict[str, list[IndicatorDataPoint]] = {}
+    signal_log: list[SignalRecord] = []
+    strategy_events: list[StrategyEvent] = []
 
 
 class SimulationResult(BaseModel, frozen=True):
@@ -145,6 +157,7 @@ class BacktestSimulator:
         self,
         snapshot: PortfolioSnapshot,
         report: DeviationReport,
+        market_ctx: BacktestMarketContext | None = None,
     ) -> list[Signal]:
         """Run all configured signal rules against the snapshot."""
         signals: list[Signal] = []
@@ -155,6 +168,7 @@ class BacktestSimulator:
                     sig_config.params,
                     report,
                     snapshot,
+                    market_ctx=market_ctx,
                 )
                 signals.extend(result)
         return signals
@@ -176,10 +190,27 @@ class BacktestSimulator:
 
     def run_iteration(self, iteration: int) -> IterationResult:
         """Run a single Monte Carlo iteration."""
+        self._strategy.reset()
         portfolio = self._build_portfolio()
         slippage = self._sample_slippage()
         daily_values: list[DayResult] = []
         trading_days = list(self._clock)
+
+        # Build indicator rule list once
+        indicator_rules: list[tuple[Any, Any]] = []
+        for sig_config in self._settings.signals:
+            if sig_config.rule not in self._signal_registry:
+                continue
+            rule_cls = self._signal_registry.get_rule(sig_config.rule)
+            rule = rule_cls()
+            if rule.indicator_specs():
+                params = rule_cls.params_model.model_validate(sig_config.params)
+                indicator_rules.append((rule, params))
+
+        indicator_accumulators: dict[str, list[IndicatorDataPoint]] = defaultdict(list)
+        signal_log_entries: list[SignalRecord] = []
+        strategy_events_acc: list[StrategyEvent] = []
+        sample_counter = 0
 
         for d in trading_days:
             prices = self._get_prices_for_date(d)
@@ -195,7 +226,8 @@ class BacktestSimulator:
                 # Build snapshot for strategy before PAC execution
                 pre_pac_snapshot = portfolio.snapshot(d, prices)
                 pre_pac_report = calculate_deviations(
-                    pre_pac_snapshot, self._settings,
+                    pre_pac_snapshot,
+                    self._settings,
                 )
                 pac_adj = self._strategy.on_pac_date(
                     pre_pac_snapshot,
@@ -216,8 +248,27 @@ class BacktestSimulator:
             snapshot = portfolio.snapshot(d, prices)
             report = calculate_deviations(snapshot, self._settings)
 
+            # 3.5. Build market context for this date
+            market_ctx = BacktestMarketContext(
+                price_data=self._price_data,
+                current_date=d,
+                ticker_map=self._asset_ticker,
+            )
+
             # 4. Evaluate signal rules
-            signals = self._evaluate_signals(snapshot, report)
+            signals = self._evaluate_signals(snapshot, report, market_ctx=market_ctx)
+
+            # Log all signals from this day
+            for sig in signals:
+                signal_log_entries.append(
+                    SignalRecord(
+                        date=d,
+                        rule_name=sig.name,
+                        severity=sig.severity.value,
+                        message=sig.message,
+                        metadata=sig.metadata,
+                    )
+                )
 
             # 5. Feed signals to strategy → get actions
             if signals:
@@ -232,6 +283,9 @@ class BacktestSimulator:
                     execute_on = self._find_execution_date(d, slippage)
                     portfolio.queue_action(action, emitted_on=d, execute_on=execute_on)
 
+            # Drain strategy events (always, not just when signals fire)
+            strategy_events_acc.extend(self._strategy.drain_events())
+
             # 7. Record daily snapshot
             asset_ids = [a.id for a in self._settings.assets]
             allocs = snapshot.allocations(asset_ids)
@@ -244,13 +298,34 @@ class BacktestSimulator:
                 ),
             )
 
+            # 8. Indicator sampling (every 5 trading days ~ weekly)
+            sample_counter += 1
+            if sample_counter % 5 == 0:
+                for rule, params in indicator_rules:
+                    result = rule.compute_indicators(
+                        params,
+                        market_ctx=market_ctx,
+                    )
+                    if result is None:
+                        continue
+                    for suffix, value in result.values.items():
+                        key = f"{rule.name}.{suffix}"
+                        indicator_accumulators[key].append(
+                            IndicatorDataPoint(date=d, value=value),
+                        )
+
         return IterationResult(
             iteration=iteration,
             daily_values=daily_values,
             trades=portfolio.trade_log,
-            final_value=daily_values[-1].total_value
-            if daily_values
-            else self._config.initial_cash,
+            final_value=(
+                daily_values[-1].total_value
+                if daily_values
+                else self._config.initial_cash
+            ),
+            indicator_snapshots=dict(indicator_accumulators),
+            signal_log=signal_log_entries,
+            strategy_events=strategy_events_acc,
         )
 
     def run(self) -> SimulationResult:
@@ -272,3 +347,32 @@ class BacktestSimulator:
 
         log.info("backtest_complete", iterations=len(iterations))
         return SimulationResult(config=self._config, iterations=iterations)
+
+
+def collect_indicator_meta(
+    signal_configs: list[SignalConfig],
+    registry: SignalRegistry,
+) -> list[IndicatorMeta]:
+    """Build IndicatorMeta list from all configured rules' indicator_specs()."""
+    metas: list[IndicatorMeta] = []
+    for sig_config in signal_configs:
+        if sig_config.rule not in registry:
+            continue
+        rule_cls = registry.get_rule(sig_config.rule)
+        rule = rule_cls()
+        for spec in rule.indicator_specs():
+            full_key = f"{rule.name}.{spec.key_suffix}"
+            companion_keys = [f"{rule.name}.{s}" for s in spec.companion_suffixes]
+            metas.append(
+                IndicatorMeta(
+                    key=full_key,
+                    display_name=spec.display_name,
+                    group=spec.group,
+                    kind=spec.kind,
+                    unit=spec.unit,
+                    thresholds=spec.thresholds,
+                    companion_keys=companion_keys,
+                    rule_name=rule.name,
+                )
+            )
+    return metas

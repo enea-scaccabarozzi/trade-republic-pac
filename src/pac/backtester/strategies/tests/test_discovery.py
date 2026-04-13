@@ -10,10 +10,10 @@ class TestDiscoverStrategies:
         assert "cycle_exploit" in result
 
     def test_custom_package_with_strategy(self, tmp_path: object) -> None:
-        """Covered by the builtin scan — both Phase 7 strategies are discovered."""
+        """Covered by the builtin scan — all builtin strategies are discovered."""
         result = discover_strategies("pac.backtester.strategies.builtin")
         assert isinstance(result, dict)
-        assert len(result) == 2
+        assert len(result) == 3
 
     def test_abstract_intermediate_classes_ignored(self) -> None:
         """Abstract subclasses in the package should not be discovered."""

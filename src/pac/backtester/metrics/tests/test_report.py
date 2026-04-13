@@ -51,7 +51,10 @@ class TestComputeReport:
     def test_report_has_strategy_metrics(self) -> None:
         result, ctx = _run_strategy()
         report = compute_report(
-            result, ctx["settings"], ctx["price_data"], rng_seed=42,
+            result,
+            ctx["settings"],
+            ctx["price_data"],
+            rng_seed=42,
         )
 
         assert isinstance(report, BacktestReport)
@@ -62,7 +65,10 @@ class TestComputeReport:
     def test_report_with_benchmark(self) -> None:
         result, ctx = _run_strategy(benchmark=True)
         report = compute_report(
-            result, ctx["settings"], ctx["price_data"], rng_seed=42,
+            result,
+            ctx["settings"],
+            ctx["price_data"],
+            rng_seed=42,
         )
 
         assert report.benchmark is not None
@@ -73,7 +79,10 @@ class TestComputeReport:
     def test_report_without_benchmark(self) -> None:
         result, ctx = _run_strategy(benchmark=False)
         report = compute_report(
-            result, ctx["settings"], ctx["price_data"], rng_seed=42,
+            result,
+            ctx["settings"],
+            ctx["price_data"],
+            rng_seed=42,
         )
 
         assert report.benchmark is None
@@ -82,7 +91,10 @@ class TestComputeReport:
     def test_report_preserves_iteration_data(self) -> None:
         result, ctx = _run_strategy()
         report = compute_report(
-            result, ctx["settings"], ctx["price_data"], rng_seed=42,
+            result,
+            ctx["settings"],
+            ctx["price_data"],
+            rng_seed=42,
         )
 
         assert len(report.strategy_iterations) == 2

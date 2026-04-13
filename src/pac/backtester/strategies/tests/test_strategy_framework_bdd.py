@@ -78,11 +78,13 @@ def _strategy_emits_rebalance(ctx: dict[str, Any]) -> None:
 @given("a portfolio with deviations above threshold")
 def _portfolio_with_deviations(ctx: dict[str, Any]) -> None:
     ctx["snapshot"] = PortfolioSnapshot(
-        positions=[], cash=Decimal("10000"),
+        positions=[],
+        cash=Decimal("10000"),
         timestamp=datetime(2024, 1, 15),
     )
     ctx["report"] = DeviationReport(
-        deviations={}, max_severity=SignalSeverity.INFO,
+        deviations={},
+        max_severity=SignalSeverity.INFO,
         timestamp=datetime(2024, 1, 15),
     )
 
@@ -172,11 +174,13 @@ def _call_on_pac_date(ctx: dict[str, Any]) -> None:
     strategy = ctx["strategy"]
     ctx["pac_result"] = strategy.on_pac_date(
         snapshot=PortfolioSnapshot(
-            positions=[], cash=Decimal("10000"),
+            positions=[],
+            cash=Decimal("10000"),
             timestamp=datetime(2024, 1, 2),
         ),
         report=DeviationReport(
-            deviations={}, max_severity=SignalSeverity.INFO,
+            deviations={},
+            max_severity=SignalSeverity.INFO,
             timestamp=datetime(2024, 1, 2),
         ),
         current_date=date(2024, 1, 2),
@@ -189,11 +193,13 @@ def _call_on_pac_date_default(ctx: dict[str, Any]) -> None:
     strategy = ctx["strategy"]
     ctx["pac_result"] = strategy.on_pac_date(
         snapshot=PortfolioSnapshot(
-            positions=[], cash=Decimal("10000"),
+            positions=[],
+            cash=Decimal("10000"),
             timestamp=datetime(2024, 1, 2),
         ),
         report=DeviationReport(
-            deviations={}, max_severity=SignalSeverity.INFO,
+            deviations={},
+            max_severity=SignalSeverity.INFO,
             timestamp=datetime(2024, 1, 2),
         ),
         current_date=date(2024, 1, 2),

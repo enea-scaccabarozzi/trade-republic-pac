@@ -62,10 +62,12 @@ def run_benchmark(
     Returns:
         SimulationResult for the benchmark run.
     """
-    bench_config = config.model_copy(update={
-        "strategy": "benchmark",
-        "slippage_days": (0, 0),
-    })
+    bench_config = config.model_copy(
+        update={
+            "strategy": "benchmark",
+            "slippage_days": (0, 0),
+        }
+    )
 
     simulator = BacktestSimulator(
         config=bench_config,

@@ -9,6 +9,7 @@ from pac.backtester.engine.actions import (
     PendingAction,
 )
 from pac.backtester.engine.clock import SimulationClock
+from pac.backtester.engine.market_context import BacktestMarketContext
 from pac.backtester.engine.portfolio import SimulatedPortfolio, SimulatedPosition
 from pac.backtester.engine.simulator import (
     BacktestSimulator,
@@ -20,6 +21,7 @@ from pac.backtester.engine.simulator import (
 __all__ = [
     "Action",
     "ActionType",
+    "BacktestMarketContext",
     "BacktestSimulator",
     "DayResult",
     "ExecutedTrade",
