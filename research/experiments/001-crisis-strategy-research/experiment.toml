@@ -1,0 +1,11 @@
+[experiment]
+created = 2026-04-11
+id = "001"
+slug = "crisis-strategy-research"
+title = "Crisis Detection and Cash Flow Exploitation in PAC Portfolios"
+hypothesis = "A rule-based crisis detection system with composite N-of-M voting can generate alpha for a European PAC portfolio through cash flow manipulation rather than market timing."
+tags = ["crisis", "composite-signal", "pac-tilt", "hard-rebalance"]
+status = "completed"
+
+[experiment.strategy]
+name = "crisis_exploit"

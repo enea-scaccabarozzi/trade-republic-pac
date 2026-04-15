@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 
 from pac.backtester.api.deps import BacktestManager
-from pac.backtester.api.routes import runs, strategies
+from pac.backtester.api.routes import research, runs, strategies
 from pac.backtester.results.store import ResultStore
 
 
@@ -65,6 +65,7 @@ def create_app(
     # API routes
     app.include_router(runs.router, prefix="/api")
     app.include_router(strategies.router, prefix="/api")
+    app.include_router(research.router, prefix="/api")
 
     # SPA static files — must be last (catch-all)
     if static_dir is not None and static_dir.is_dir():
@@ -86,9 +87,7 @@ def create_app(
             candidate = _resolved / path
             if (
                 path
-                and not any(
-                    part.startswith(".") for part in Path(path).parts
-                )
+                and not any(part.startswith(".") for part in Path(path).parts)
                 and candidate.is_file()
                 and _resolved in candidate.resolve().parents
             ):

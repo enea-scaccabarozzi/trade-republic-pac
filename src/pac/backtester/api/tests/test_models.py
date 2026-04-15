@@ -41,6 +41,36 @@ class TestRunSummaryFromRunResult:
         assert summary.sharpe_median is None
         assert summary.max_drawdown_median is None
 
+    def test_to_summary_includes_new_fields(
+        self,
+        make_run_result: Callable[..., RunResult],
+    ) -> None:
+        result = make_run_result()
+        result = result.model_copy(
+            update={
+                "label": "H1 tilt",
+                "tags": ["crisis", "pac"],
+                "experiment_id": "exp-001",
+                "quantstats_metrics": {"sharpe": 1.2},
+            }
+        )
+        summary = _to_summary(result)
+        assert summary.label == "H1 tilt"
+        assert summary.tags == ["crisis", "pac"]
+        assert summary.experiment_id == "exp-001"
+        assert summary.quantstats_metrics == {"sharpe": 1.2}
+
+    def test_to_summary_defaults_for_legacy_run(
+        self,
+        make_run_result: Callable[..., RunResult],
+    ) -> None:
+        result = make_run_result()
+        summary = _to_summary(result)
+        assert summary.label is None
+        assert summary.tags == []
+        assert summary.experiment_id is None
+        assert summary.quantstats_metrics is None
+
 
 class TestProgressEventSerialization:
     def test_model_dump_json_shape(self) -> None:

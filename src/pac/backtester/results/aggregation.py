@@ -31,6 +31,9 @@ def build_run_result(
     *,
     indicator_meta: list[IndicatorMeta] | None = None,
     strategy_event_meta: list[StrategyEventMeta] | None = None,
+    label: str | None = None,
+    tags: list[str] | None = None,
+    experiment_id: str | None = None,
 ) -> RunResult:
     """Convert a BacktestReport into a frontend-agnostic RunResult.
 
@@ -97,6 +100,9 @@ def build_run_result(
         strategy_events=strategy_events,
         strategy_event_meta=strategy_event_meta or [],
         benchmark_equity_curve=benchmark_equity_curve,
+        label=label,
+        tags=tags or [],
+        experiment_id=experiment_id,
     )
 
 

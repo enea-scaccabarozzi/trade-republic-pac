@@ -1,3 +1,7 @@
+> **Note:** This analysis template was superseded by the full research paper at
+> [research/papers/crisis-strategy/paper.md](../research/papers/crisis-strategy/paper.md).
+> The tables below were not populated; all findings are in the paper.
+
 # Crisis Exploitation Backtest Analysis
 
 > Generated from `scripts/run_backtest_validation.py` runs.

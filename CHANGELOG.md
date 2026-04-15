@@ -19,6 +19,19 @@ Do not edit manually.
 - 3-level design depth system with dark mode support
 - SPA static file serving with `--static-dir` CLI flag
 - ADR-007: React Dashboard architecture decision record
+- Added research framework with structured experiment workflow (`research/` directory, auto-managed manifests, experiment scaffolding)
+- Added `ResearchContext` zero-ceremony API for data access, indicator computation, and simulation (`src/pac/backtester/research/`)
+- Added `IndicatorRegistry` with empty-by-default design and opt-in indicator packs (tulipy 104 TA indicators, crisis indicators)
+- Added dynamic indicator composition with `composite_series()` N-of-M voting and threshold helpers
+- Added quick-test mode (N=1, deterministic, ~10s) as default research mode, with `compare()` and `sweep()` for variant testing
+- Added `EventCalendar` system with built-in calendars (crises, bull runs, corrections, regime changes) and event tagging
+- Added out-of-sample validation: temporal holdout, expanding walk-forward, and event-leave-one-out cross-validation
+- Added deep quantstats integration with full tearsheet export, HTML reports, and rolling analytics
+- Added `label`, `tags`, `experiment_id`, and `quantstats_report` to ResultStore for searchable labelled runs
+- Added `/api/research/*` REST endpoints for experiments, papers, and strategy files
+- Added React dashboard research browser with experiment viewer, paper reader, and quantstats report viewer
+- Added `just new-experiment` scaffolding command
+- Added ADR-008 documenting the research framework architecture decision
 - Added interactive web dashboard for backtester (`src/pac/backtester/dashboard/`) with NiceGUI, featuring results viewer, backtest wizard, and multi-run comparison
 - Added `dashboard` dependency group (`nicegui>=2.0`, `plotly>=6.0`) — install with `uv sync --group dashboard`
 - Added `just dashboard` and `just dashboard-sync` Justfile commands
@@ -126,9 +139,14 @@ Do not edit manually.
 - `PacPlanParams.day_of_month` default changed from `14` to `16`
 - `CycleInversionParams.min_pct` default changed from `2.0` to `3.0`
 - 5 builtin `.j2` templates (was 4): added `crisis_alert`
+- Research dashboard: experiment list uses DataTable with sortable columns and accessible navigation links
+- Research dashboard: artifact viewer supports client-side markdown rendering (react-markdown), syntax highlighting (shiki), and CSV table display
+- Research dashboard: detail page uses shadcn Button/Table components for design system consistency
+- Research API: file-serving endpoints support `?raw=true` for raw file content (bypasses server-side markdown rendering)
 
 ### Fixed
 
+- Research dashboard: experiment detail route now renders correctly (child route had no `<Outlet />` in parent layout)
 - `.env.example` variable names now match `pac.yaml.example` `${ENV_VAR}` references (was using `PAC_` prefix)
 - `.env` is now gitignored to prevent accidental secret commits
 - `.env` is loaded at startup via `python-dotenv` so `just run` works with local `.env` files

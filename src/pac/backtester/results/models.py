@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from pac.backtester.config import BacktestConfig
 from pac.models.indicators import IndicatorKind, IndicatorThreshold
@@ -141,6 +141,46 @@ class SignalRecord(BaseModel, frozen=True):
     metadata: dict[str, Any] = {}
 
 
+class OOSMetadata(BaseModel, frozen=True):
+    """OOS validation info attached to a run."""
+
+    method: Literal["holdout", "walk_forward", "leave_one_event_out"]
+    """Which OOS method was used."""
+
+    holdout_date: dt.date | None = None
+    """Split date for temporal holdout."""
+
+    walk_forward_windows: int | None = None
+    """Number of expanding walk-forward windows."""
+
+    event_calendar: str | None = None
+    """Calendar name for leave-one-event-out."""
+
+    degradation_ratio: float | None = None
+    """IS-to-OOS degradation ratio (lower = better generalization)."""
+
+
+class MetricDelta(BaseModel, frozen=True):
+    """A single metric's values from two runs and their delta."""
+
+    metric: str
+    baseline: float
+    candidate: float
+    delta: float
+    delta_pct: float | None = None
+    """Percentage change. None if baseline is zero."""
+
+
+class ComparisonResult(BaseModel, frozen=True):
+    """Side-by-side comparison of two backtest runs."""
+
+    baseline_run_id: str
+    candidate_run_id: str
+    baseline_label: str | None = None
+    candidate_label: str | None = None
+    deltas: list[MetricDelta]
+
+
 class RunResult(BaseModel, frozen=True):
     """Complete backtest run result — the JSON sidecar schema.
 
@@ -163,3 +203,23 @@ class RunResult(BaseModel, frozen=True):
     strategy_events: list[StrategyEvent] = []
     strategy_event_meta: list[StrategyEventMeta] = []
     benchmark_equity_curve: list[EquityCurvePoint] | None = None
+
+    # ── Research metadata (all optional, backward-compatible) ──
+
+    label: str | None = None
+    """Human-readable label, e.g. 'H1 PAC tilt 90/5/5'."""
+
+    tags: list[str] = Field(default_factory=list)
+    """Categorization tags, e.g. ['crisis', 'pac-tilt', 'exp-001']."""
+
+    experiment_id: str | None = None
+    """Links run to research/experiments/NNN-slug/."""
+
+    quantstats_report_path: str | None = None
+    """Relative path to HTML tearsheet (if generated)."""
+
+    quantstats_metrics: dict[str, float] | None = None
+    """Flat quantstats metrics dict from the median iteration."""
+
+    oos_metadata: OOSMetadata | None = None
+    """Out-of-sample validation info attached to this run."""

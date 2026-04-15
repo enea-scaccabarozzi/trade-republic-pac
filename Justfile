@@ -60,6 +60,10 @@ new-channel name:
 new-strategy name:
     uv run python scripts/scaffold_strategy.py {{ name }}
 
+# Scaffold a new research experiment
+new-experiment name *args:
+    uv run python scripts/scaffold_experiment.py {{ name }} {{ args }}
+
 # Validate pac.yaml configuration
 validate-config *args:
     uv run python scripts/validate_config.py {{ args }}

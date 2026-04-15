@@ -24,6 +24,10 @@ class RunSummary(BaseModel):
     cagr_median: float | None = None
     sharpe_median: float | None = None
     max_drawdown_median: float | None = None
+    label: str | None = None
+    tags: list[str] = []
+    experiment_id: str | None = None
+    quantstats_metrics: dict[str, float] | None = None
 
 
 class RunListResponse(BaseModel):
@@ -85,3 +89,77 @@ class ErrorResponse(BaseModel):
     """Standard error response shape."""
 
     detail: str
+
+
+# ── Research models ──
+
+
+class ExperimentSummary(BaseModel):
+    """Lightweight experiment entry for the list endpoint."""
+
+    id: str
+    slug: str
+    title: str
+    status: str
+    strategy_name: str | None = None
+    tags: list[str] = []
+    created: dt.date
+    concluded: dt.date | None = None
+    artifact_count: int = 0
+    report_count: int = 0
+    result_file_count: int = 0
+
+
+class ExperimentListResponse(BaseModel):
+    """List of experiment summaries."""
+
+    experiments: list[ExperimentSummary]
+    total: int
+
+
+class ExperimentDetailResponse(BaseModel):
+    """Full experiment detail with computed state and linked runs."""
+
+    id: str
+    slug: str
+    title: str
+    hypothesis: str
+    status: str
+    strategy_name: str | None = None
+    strategy_params_file: str | None = None
+    tags: list[str] = []
+    created: dt.date
+    concluded: dt.date | None = None
+    artifacts: list[str] = []
+    reports: list[str] = []
+    result_files: list[str] = []
+    linked_run_ids: list[str] = []
+    readme_html: str | None = None
+
+
+class PaperSummary(BaseModel):
+    """Lightweight paper entry."""
+
+    slug: str
+    title: str
+    has_figures: bool = False
+
+
+class PaperListResponse(BaseModel):
+    """List of research papers."""
+
+    papers: list[PaperSummary]
+
+
+class StrategySnapshotSummary(BaseModel):
+    """A strategy parameter snapshot file."""
+
+    filename: str
+    strategy_name: str | None = None
+    params: dict[str, Any] = {}
+
+
+class StrategySnapshotListResponse(BaseModel):
+    """List of strategy snapshots."""
+
+    snapshots: list[StrategySnapshotSummary]

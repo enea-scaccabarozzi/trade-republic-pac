@@ -9,3 +9,4 @@
 | [ADR-005](ADR-005-backtester-module.md)               | Backtester Module — Signal Validation Engine           | April 2026 | 005, 008 |
 | [ADR-006](ADR-006-market-context-crisis-detection.md) | MarketContext Protocol & Crisis Detection Architecture | April 2026 | 009, 010 |
 | [ADR-007](ADR-007-react-dashboard.md)                 | React Dashboard — Strategy Validation Workbench        | April 2026 | 011      |
+| [ADR-008](ADR-008-research-framework.md)              | Research Framework — Structured Experiment Workflow    | April 2026 | 012      |

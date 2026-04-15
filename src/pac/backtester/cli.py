@@ -22,6 +22,7 @@ from rich.progress import (
     TextColumn,
 )
 from rich.table import Table
+from rich.text import Text
 
 from pac.backtester.config import VALID_METRICS, BacktestConfig
 from pac.backtester.results.models import MetricValue, RunResult
@@ -116,6 +117,79 @@ def _parse_strategy_params(s: str) -> dict[str, Any]:
 def _error(msg: str) -> None:
     """Print an error message to stderr."""
     typer.echo(f"Error: {msg}", err=True)
+
+
+# ── Research helpers ──────────────────────────────────────────────────────────
+
+RESEARCH_METRICS: frozenset[str] = frozenset(
+    {"sortino", "calmar", "max_drawdown", "cagr", "sharpe", "volatility"}
+)
+
+
+def _parse_research_metrics(s: str) -> list[str]:
+    """Parse comma-separated research metric names."""
+    names = [n.strip() for n in s.split(",") if n.strip()]
+    invalid = [n for n in names if n not in RESEARCH_METRICS]
+    if invalid:
+        raise typer.BadParameter(
+            f"Unknown metrics: {', '.join(invalid)}. "
+            f"Choices: {', '.join(sorted(RESEARCH_METRICS))}"
+        )
+    return names
+
+
+def _parse_variant(s: str) -> dict[str, Any]:
+    """Parse ``strategy:params_json[:label]`` into a variant dict.
+
+    Split on first ``:`` to get strategy, then rsplit the remainder
+    on last ``:`` to peel off optional label — preserving ``:``
+    inside JSON values.
+    """
+    if ":" not in s:
+        return {"strategy": s}
+    strategy, remainder = s.split(":", maxsplit=1)
+    # Try peeling a label off the end
+    if ":" in remainder:
+        maybe_json, _, maybe_label = remainder.rsplit(":", maxsplit=1)
+        # If the left part is valid JSON, the right part is the label
+        try:
+            params = json.loads(maybe_json)
+            if isinstance(params, dict):
+                return {
+                    "strategy": strategy,
+                    "params": params,
+                    "label": maybe_label,
+                }
+        except json.JSONDecodeError:
+            pass
+    # No label — entire remainder is JSON (or empty)
+    try:
+        params = json.loads(remainder) if remainder else {}
+    except json.JSONDecodeError as e:
+        raise typer.BadParameter(f"Invalid JSON in variant '{s}': {e}") from e
+    if not isinstance(params, dict):
+        raise typer.BadParameter(
+            f"Variant params must be a JSON object, got: {type(params).__name__}"
+        )
+    return {"strategy": strategy, "params": params}
+
+
+def _build_research_context(
+    config_path: Path,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> Any:
+    """Build a ResearchContext with a loading spinner."""
+    from pac.backtester.research.context import ResearchContext
+
+    con = Console()
+    with con.status("[bold]Loading market data...[/bold]"):
+        return ResearchContext.from_config(
+            config_path,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -455,6 +529,320 @@ def dashboard(
             port=port,
             log_level="info",
         )
+
+
+# ── Research commands ─────────────────────────────────────────────────────────
+
+
+@app.command()
+def quick(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to pac.yaml config file."),
+    ] = Path("pac.yaml"),
+    strategy: Annotated[
+        str,
+        typer.Option("--strategy", "-s", help="Strategy name to quick-test."),
+    ] = ...,  # type: ignore[assignment]
+    strategy_params: Annotated[
+        str,
+        typer.Option(
+            "--strategy-params",
+            help="JSON string of strategy params.",
+        ),
+    ] = "{}",
+    metrics: Annotated[
+        str,
+        typer.Option("--metrics", help="Comma-separated metric names."),
+    ] = "sharpe,cagr,max_drawdown",
+    start: Annotated[
+        datetime | None,
+        typer.Option(
+            "--start",
+            help="Start date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+    end: Annotated[
+        datetime | None,
+        typer.Option(
+            "--end",
+            help="End date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+) -> None:
+    """Run a quick-test simulation (N=1, deterministic, ~10s)."""
+    con = Console()
+    metric_names = _parse_research_metrics(metrics)
+    params = _parse_strategy_params(strategy_params)
+    start_date = start.date() if start else None
+    end_date = end.date() if end else None
+
+    try:
+        ctx = _build_research_context(
+            config,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception as e:
+        _error(str(e))
+        raise typer.Exit(1) from None
+
+    try:
+        result = ctx.simulate(strategy, params)
+        m = ctx.compute_metrics(result, metric_names)
+    except ValueError as e:
+        _error(str(e))
+        raise typer.Exit(1) from None
+
+    # Display
+    start_d = result.daily_values[0].date if result.daily_values else "?"
+    end_d = result.daily_values[-1].date if result.daily_values else "?"
+    header = f"{start_d} → {end_d} · N=1 · deterministic"
+    table = Table(show_header=False, show_edge=False, pad_edge=False)
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+    table.add_row("Final Value", f"€{float(result.final_value):,.2f}")
+    for name in metric_names:
+        val = m.get(name, float("nan"))
+        if name in ("cagr", "max_drawdown", "volatility"):
+            table.add_row(name.replace("_", " ").title(), f"{val * 100:.1f}%")
+        else:
+            table.add_row(name.replace("_", " ").title(), f"{val:.4f}")
+    table.add_row("Trades", str(len(result.trades)))
+    con.print(Panel(table, title=f"Quick Test: {strategy}", subtitle=header))
+
+
+@app.command(name="compare")
+def compare_cmd(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to pac.yaml config file."),
+    ] = Path("pac.yaml"),
+    variant: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--variant",
+            "-v",
+            help="Variant spec: 'strategy:params_json[:label]'.",
+        ),
+    ] = None,
+    metrics: Annotated[
+        str,
+        typer.Option("--metrics", help="Comma-separated metric names."),
+    ] = "sharpe,cagr,max_drawdown",
+    start: Annotated[
+        datetime | None,
+        typer.Option(
+            "--start",
+            help="Start date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+    end: Annotated[
+        datetime | None,
+        typer.Option(
+            "--end",
+            help="End date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+) -> None:
+    """Compare multiple strategy variants side-by-side."""
+    con = Console()
+    variants_raw = variant or []
+    if not variants_raw:
+        _error("At least one --variant is required.")
+        raise typer.Exit(1) from None
+
+    metric_names = _parse_research_metrics(metrics)
+    start_date = start.date() if start else None
+    end_date = end.date() if end else None
+
+    parsed: list[dict[str, Any]] = []
+    for v in variants_raw:
+        try:
+            parsed.append(_parse_variant(v))
+        except typer.BadParameter as e:
+            _error(str(e))
+            raise typer.Exit(1) from None
+
+    try:
+        ctx = _build_research_context(
+            config,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception as e:
+        _error(str(e))
+        raise typer.Exit(1) from None
+
+    try:
+        table_result = ctx.compare(parsed, metrics=metric_names)
+    except ValueError as e:
+        _error(str(e))
+        raise typer.Exit(1) from None
+
+    # Display
+    table = Table(title="Comparison", show_header=True, header_style="bold")
+    table.add_column("Variant")
+    table.add_column("Final Value", justify="right")
+    for mn in metric_names:
+        table.add_column(mn.replace("_", " ").title(), justify="right")
+
+    for vr in table_result.variants:
+        row: list[str] = [vr.label, f"€{vr.final_value:,.0f}"]
+        for mn in metric_names:
+            val = vr.metrics.get(mn, float("nan"))
+            if mn in ("cagr", "max_drawdown", "volatility"):
+                row.append(f"{val * 100:.1f}%")
+            else:
+                row.append(f"{val:.4f}")
+        table.add_row(*row)
+
+    con.print(table)
+
+
+@app.command(name="sweep")
+def sweep_cmd(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to pac.yaml config file."),
+    ] = Path("pac.yaml"),
+    strategy: Annotated[
+        str,
+        typer.Option("--strategy", "-s", help="Strategy name."),
+    ] = ...,  # type: ignore[assignment]
+    grid: Annotated[
+        str,
+        typer.Option(
+            "--grid",
+            "-g",
+            help="JSON dict of param → list of values.",
+        ),
+    ] = ...,  # type: ignore[assignment]
+    base_params: Annotated[
+        str,
+        typer.Option("--base-params", help="JSON string of fixed base params."),
+    ] = "{}",
+    metrics: Annotated[
+        str,
+        typer.Option("--metrics", help="Comma-separated metric names."),
+    ] = "sharpe,cagr,max_drawdown",
+    top_n: Annotated[
+        int,
+        typer.Option("--top", help="Show top N results."),
+    ] = 10,
+    start: Annotated[
+        datetime | None,
+        typer.Option(
+            "--start",
+            help="Start date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+    end: Annotated[
+        datetime | None,
+        typer.Option(
+            "--end",
+            help="End date (YYYY-MM-DD).",
+            formats=["%Y-%m-%d"],
+        ),
+    ] = None,
+) -> None:
+    """Run a parameter grid sweep."""
+    con = Console()
+    metric_names = _parse_research_metrics(metrics)
+    bp = _parse_strategy_params(base_params)
+    start_date = start.date() if start else None
+    end_date = end.date() if end else None
+
+    try:
+        grid_dict: dict[str, list[Any]] = json.loads(grid)
+    except json.JSONDecodeError as e:
+        _error(f"Invalid JSON for --grid: {e}")
+        raise typer.Exit(1) from None
+    if not isinstance(grid_dict, dict):
+        _error("--grid must be a JSON object.")
+        raise typer.Exit(1) from None
+
+    try:
+        ctx = _build_research_context(
+            config,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    except Exception as e:
+        _error(str(e))
+        raise typer.Exit(1) from None
+
+    n_combos = 1
+    for vals in grid_dict.values():
+        n_combos *= len(vals) if isinstance(vals, list) else 1
+
+    with con.status(f"[bold]Sweeping {n_combos} combinations...[/bold]"):
+        try:
+            sweep_result = ctx.sweep(
+                strategy,
+                grid_dict,
+                base_params=bp,
+                metrics=metric_names,
+            )
+        except ValueError as e:
+            _error(str(e))
+            raise typer.Exit(1) from None
+
+    # Sort by primary metric descending
+    primary = metric_names[0]
+    sorted_results = sorted(
+        sweep_result.results,
+        key=lambda v: v.metrics.get(primary, float("-inf")),
+        reverse=True,
+    )
+    display = sorted_results[:top_n]
+    best_label = sweep_result.best.label
+
+    # Display
+    title = f"Sweep: {strategy} ({len(sweep_result.results)} combinations)"
+    table = Table(
+        title=title,
+        caption=f"Sorted by: {primary} (descending)",
+        show_header=True,
+        header_style="bold",
+    )
+    table.add_column("Params")
+    table.add_column("Final Value", justify="right")
+    for mn in metric_names:
+        table.add_column(mn.replace("_", " ").title(), justify="right")
+
+    for vr in display:
+        # Mark best with a star
+        label_text = Text(vr.label)
+        if vr.label == best_label:
+            label_text.append(" ★", style="bold yellow")
+        row: list[str | Text] = [
+            label_text,
+            f"€{vr.final_value:,.0f}",
+        ]
+        for mn in metric_names:
+            val = vr.metrics.get(mn, float("nan"))
+            if mn in ("cagr", "max_drawdown", "volatility"):
+                row.append(f"{val * 100:.1f}%")
+            else:
+                row.append(f"{val:.4f}")
+        table.add_row(*row)
+
+    con.print(table)
+
+    # Best summary
+    best = sweep_result.best
+    best_val = best.metrics.get(primary, float("nan"))
+    params_str = ", ".join(f"{k}={v}" for k, v in best.params.items())
+    con.print(
+        f"\nBest: {params_str} "
+        f"({primary.replace('_', ' ').title()}: {best_val:.4f})"
+    )
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

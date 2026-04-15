@@ -184,8 +184,8 @@ src/pac/
     └── engine/
         └── simulator.py           # Passes BacktestMarketContext, calls strategy.reset()
 
-docs/research/
-├── crisis-strategy-paper.md       # Publication-ready research paper
+research/papers/crisis-strategy/
+├── paper.md                       # Publication-ready research paper
 ├── generate_figures.py            # Companion script (figures + claim validation)
 ├── figures/                       # Generated PNG figures
 └── README.md                      # Reproduction instructions
@@ -210,7 +210,7 @@ Iterative backtest research (Task 010, 9 hypotheses, 2006-2026, €10k initial +
 
 **Key finding:** The primary alpha source (~78%) is fee-free PAC tilt — redirecting monthly contributions from 70/15/15 to 100/0/0 during crisis + 120-day recovery. Hard rebalancing at extreme drawdowns adds marginal alpha (~22%) through only 4 trades in 20 years. Three timing-asymmetry hypotheses (RS peak sell, velocity inflection buy, decoupled state machine) all failed — crisis conditions co-occur rather than sequence.
 
-**Caveats:** Single historical path, 5 crisis episodes, parameters optimized on validation data, mediocre GFC-era proxy quality (r=0.57). Full analysis in [crisis-strategy-paper.md](../research/crisis-strategy-paper.md).
+**Caveats:** Single historical path, 5 crisis episodes, parameters optimized on validation data, mediocre GFC-era proxy quality (r=0.57). Full analysis in [paper.md](../../research/papers/crisis-strategy/paper.md).
 
 The crisis composite rule serves dual purposes: (1) **monitoring/alerting** via Telegram notifications, and (2) **strategy input** for the two-mechanism exploitation strategy in backtesting.
 

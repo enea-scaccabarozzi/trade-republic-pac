@@ -48,6 +48,18 @@ src/pac/
 tests/                        # Shared fixtures + integration tests
 docs/                         # Project documentation + ADRs
 scripts/                      # DX scaffolding & validation CLIs (scaffold_rule, scaffold_channel, validate_config)
+research/                     # Research experiments, papers, strategy snapshots (not a Python package)
+├── experiments/              # Auto-managed experiments (NNN-slug/ dirs)
+│   └── _template/            # Scaffold template for new experiments
+├── papers/                   # Published research papers
+└── strategies/               # Named strategy parameter snapshots
+src/pac/backtester/
+├── research/                 # Research framework — ResearchContext, indicators, events, OOS
+│   ├── context.py            # ResearchContext zero-ceremony API
+│   ├── indicators.py         # IndicatorRegistry + opt-in packs
+│   ├── events.py             # EventCalendar + MarketEvent
+│   └── packs/                # tulipy_bridge/, crisis/
+├── api/                      # FastAPI REST API (research routes, run management)
 ```
 
 Each submodule has co-located `tests/`, `features/`, and `README.md`.
@@ -77,6 +89,7 @@ Each submodule has co-located `tests/`, `features/`, and `README.md`.
 - `just new-rule <name>` — scaffold a new signal rule in `src/pac/rules/builtin/`
 - `just new-channel <name>` — scaffold a new delivery channel in `src/pac/delivery/channels/`
 - `just validate-config` — validate `pac.yaml` against config schema
+- `just new-experiment <name>` — scaffold a new research experiment in `research/experiments/`
 
 ## Important Patterns
 
@@ -139,11 +152,9 @@ All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in
 | Metrics computed via quantstats per MC iteration, aggregated to P5/median/P95 via `MetricsCalculator`                                              | `src/pac/backtester/metrics/calculator.py`                    | 2026-04 |
 | Assets need `ticker: EUNL.DE` field in `pac.yaml` for yfinance resolution; `resolve_tickers()` errors on missing tickers                           | `src/pac/backtester/data/provider.py`                         | 2026-04 |
 | Backtester is an optional isolated module — zero imports from main `pac` app; install with `just backtest-sync`                                    | `src/pac/backtester/`                                         | 2026-04 |
-| Dashboard uses NiceGUI with `@ui.page` route registration via side-effect imports                                                                  | `src/pac/backtester/dashboard/app.py`                         | 2026-04 |
-| Dashboard state cached via `DashboardState` wrapper around `ResultStore`                                                                           | `src/pac/backtester/dashboard/state.py`                       | 2026-04 |
-| Dashboard is optional — `dashboard` dependency group, lazy imports gated by try/except                                                             | `pyproject.toml`, `dashboard/__main__.py`                     | 2026-04 |
-| `run_pipeline()` in `runner.py` is the shared backtest pipeline (CLI + dashboard)                                                                  | `src/pac/backtester/runner.py`                                | 2026-04 |
-| Plotly chart builders are pure functions in `charts.py`, decoupled from NiceGUI rendering                                                          | `src/pac/backtester/dashboard/charts.py`                      | 2026-04 |
+| Dashboard uses React + Vite with TanStack Router file-based route registration                                                                     | `src/pac/backtester/dashboard/`                               | 2026-04 |
+| Dashboard is optional — React app built separately; backend API in `backtester.api`                                                                | `src/pac/backtester/api/`                                     | 2026-04 |
+| `run_pipeline()` in `runner.py` is the shared backtest pipeline (CLI + API)                                                                        | `src/pac/backtester/runner.py`                                | 2026-04 |
 | `MarketContext` protocol provides date-aware price access; production (`LiveMarketContext`) and backtest (`BacktestMarketContext`) implementations | `src/pac/market_context.py`, `src/pac/live_market_context.py` | 2026-04 |
 | Crisis rules require `MarketContext` — return empty list when `market_ctx is None` (graceful degradation)                                          | `src/pac/rules/builtin/`                                      | 2026-04 |
 | Pure indicator math lives in `_indicators.py` — rules and composite both call these functions                                                      | `src/pac/rules/builtin/_indicators.py`                        | 2026-04 |
@@ -152,3 +163,18 @@ All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in
 | `BacktestStrategy.reset()` hook clears per-iteration state (e.g., cooldown dates)                                                                  | `src/pac/backtester/strategies/base.py`                       | 2026-04 |
 | Proxy tickers (`proxy_ticker`, `proxy_end`) on `AssetConfig` enable 30+ year backtests with pre-ETF data                                           | `src/pac/config/models.py`                                    | 2026-04 |
 | `PriceSeries`/`PriceBar`/`Interval` are shared vocabulary in `pac.models.market_data`, re-exported from `pac.backtester.data.models`               | `src/pac/models/market_data.py`                               | 2026-04 |
+| `ResearchContext.from_config()` is the zero-ceremony entry point for all research scripts                                                          | `src/pac/backtester/research/context.py`                      | 2026-04 |
+| `IndicatorRegistry` starts empty; load packs via `register_pack("tulipy")` or `register_pack("crisis")`                                            | `src/pac/backtester/research/indicators.py`                   | 2026-04 |
+| Indicator packs use `IndicatorPack` ABC; tulipy and crisis are built-in                                                                            | `src/pac/backtester/research/packs/`                          | 2026-04 |
+| `EventCalendar` system with built-in calendars; accessed via `ctx.calendars`                                                                       | `src/pac/backtester/research/events.py`                       | 2026-04 |
+| Experiment state auto-computed from directory contents; `experiment.toml` is immutable seed                                                        | `src/pac/backtester/research/experiment.py`                   | 2026-04 |
+| `ExperimentManifest` scans `research/experiments/` for all experiments                                                                             | `src/pac/backtester/research/manifest.py`                     | 2026-04 |
+| Quick-test mode (N=1, deterministic, ~10s) is the default research mode                                                                            | `src/pac/backtester/research/context.py`                      | 2026-04 |
+| `ctx.compare()` and `ctx.sweep()` for variant comparison and parameter sweeps                                                                      | `src/pac/backtester/research/context.py`                      | 2026-04 |
+| OOS validation: `ctx.holdout()`, `ctx.walk_forward()`, `ctx.leave_one_event_out()`                                                                 | `src/pac/backtester/research/context.py`                      | 2026-04 |
+| Quantstats integration: `ctx.quantstats()` and `ctx.quantstats_report()` for tearsheets                                                            | `src/pac/backtester/research/context.py`                      | 2026-04 |
+| ResultStore now supports `label`, `tags`, `experiment_id` for searchable runs                                                                      | `src/pac/backtester/results/store.py`                         | 2026-04 |
+| Research API at `/api/research/*` serves experiments, papers, and strategy files                                                                   | `src/pac/backtester/api/routes/research.py`                   | 2026-04 |
+| Dashboard research browser renders experiments, papers, and quantstats reports                                                                     | `src/pac/backtester/dashboard/`                               | 2026-04 |
+| `research/` directory holds experiments, papers, and strategy snapshots (not a Python package)                                                     | `research/`                                                   | 2026-04 |
+| Scaffold new experiments via `just new-experiment <name>` (uses `scripts/scaffold_experiment.py`)                                                  | `scripts/scaffold_experiment.py`                              | 2026-04 |

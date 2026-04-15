@@ -1,0 +1,15 @@
+[experiment]
+created = {created}
+id = "{id}"
+slug = "{slug}"
+title = "{title}"
+hypothesis = ""
+tags = []
+
+# Optional: manually override auto-detected status
+# status = "rejected"
+
+# Optional: strategy configuration
+# [experiment.strategy]
+# name = "crisis_exploit"
+# params_file = "../../strategies/crisis_exploit_v1_baseline.yaml"

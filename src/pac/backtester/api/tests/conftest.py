@@ -16,6 +16,7 @@ from pac.backtester.results.models import (
     ConfidenceInterval,
     MetricValue,
     MonteCarloInfo,
+    OOSMetadata,
     RunResult,
     SummaryStats,
 )
@@ -45,6 +46,10 @@ def make_run_result() -> Callable[..., RunResult]:
         *,
         run_id: str = "test-run-001",
         strategy: str = "pac_alignment",
+        experiment_id: str | None = None,
+        quantstats_metrics: dict[str, float] | None = None,
+        quantstats_report_path: str | None = None,
+        oos_metadata: OOSMetadata | None = None,
     ) -> RunResult:
         return RunResult(
             run_id=run_id,
@@ -99,6 +104,10 @@ def make_run_result() -> Callable[..., RunResult]:
                 ),
                 total_pac_executions=24,
             ),
+            experiment_id=experiment_id,
+            quantstats_metrics=quantstats_metrics,
+            quantstats_report_path=quantstats_report_path,
+            oos_metadata=oos_metadata,
         )
 
     return _make

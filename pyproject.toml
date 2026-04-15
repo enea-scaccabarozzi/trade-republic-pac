@@ -24,8 +24,13 @@ backtest = [
     "questionary>=2.1.1",
     "plotext>=5.2",
 ]
-dashboard = ["fastapi>=0.115", "sse-starlette>=2.0"]
-research = ["matplotlib>=3.8"]
+dashboard = [
+    "fastapi>=0.115",
+    "sse-starlette>=2.0",
+    "markdown>=3.5",
+    "nh3>=0.2",
+]
+research = ["matplotlib>=3.8", "tulipy>=0.4"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -112,6 +117,10 @@ module = ["plotext.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = ["tulipy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = ["matplotlib.*"]
 ignore_missing_imports = true
 
@@ -137,6 +146,14 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["pac.backtester.dashboard.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["markdown.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["nh3.*"]
 ignore_missing_imports = true
 
 [tool.semantic_release]

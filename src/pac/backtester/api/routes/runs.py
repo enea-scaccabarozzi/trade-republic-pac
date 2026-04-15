@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sse_starlette.sse import EventSourceResponse
-from starlette.responses import Response
+from starlette.responses import HTMLResponse, Response
 
 from pac.backtester.api.deps import BacktestManager, get_manager
 from pac.backtester.api.models import (
@@ -50,6 +51,10 @@ def _to_summary(r: RunResult) -> RunSummary:
         cagr_median=cagr,
         sharpe_median=sharpe,
         max_drawdown_median=max_dd,
+        label=r.label,
+        tags=list(r.tags),
+        experiment_id=r.experiment_id,
+        quantstats_metrics=r.quantstats_metrics,
     )
 
 
@@ -167,3 +172,67 @@ async def run_progress(
             await asyncio.sleep(0.5)
 
     return EventSourceResponse(event_generator())
+
+
+@router.get("/runs/{run_id}/quantstats")
+def get_run_quantstats(
+    run_id: str,
+    format: str = Query("json"),
+    manager: BacktestManager = _depends_manager,
+) -> Response:
+    """Serve quantstats report or metrics for a run."""
+    try:
+        result = manager.store.load(run_id)
+    except FileNotFoundError as err:
+        raise HTTPException(404, f"Run '{run_id}' not found") from err
+    except ValueError as err:
+        raise HTTPException(400, f"Invalid run ID: '{run_id}'") from err
+
+    if format == "html":
+        if not result.quantstats_report_path:
+            raise HTTPException(404, "No quantstats report for this run")
+        store_base = manager.store._base_dir.resolve()
+        report_path = (
+            manager.store._base_dir / result.quantstats_report_path
+        ).resolve()
+        if not report_path.is_relative_to(store_base):
+            raise HTTPException(400, "Invalid report path: outside store directory")
+        if not report_path.is_file():
+            raise HTTPException(404, "Quantstats report file not found")
+        content = report_path.read_text(encoding="utf-8")
+        return HTMLResponse(
+            content=content,
+            headers={"Content-Security-Policy": "sandbox"},
+        )
+
+    # Default: JSON format
+    metrics: dict[str, Any] = result.quantstats_metrics or {}
+    return Response(
+        content=_json_response(metrics),
+        media_type="application/json",
+    )
+
+
+def _json_response(data: dict[str, Any]) -> str:
+    """Serialize a dict to JSON string."""
+    import json
+
+    return json.dumps(data)
+
+
+@router.get("/runs/{run_id}/oos")
+def get_run_oos(
+    run_id: str,
+    manager: BacktestManager = _depends_manager,
+) -> dict[str, Any] | None:
+    """Return OOS metadata for a run."""
+    try:
+        result = manager.store.load(run_id)
+    except FileNotFoundError as err:
+        raise HTTPException(404, f"Run '{run_id}' not found") from err
+    except ValueError as err:
+        raise HTTPException(400, f"Invalid run ID: '{run_id}'") from err
+
+    if result.oos_metadata is None:
+        return None
+    return result.oos_metadata.model_dump(mode="json")

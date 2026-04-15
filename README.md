@@ -466,7 +466,7 @@ Tickers for historical data are configured alongside each asset in `pac.yaml`. S
 
 Assets support `proxy_ticker` and `proxy_end` fields for extending backtests beyond ETF inception dates. See the [backtester README](src/pac/backtester/README.md#proxy-tickers) for details.
 
-For a detailed analysis of the crisis exploitation strategy, see the [research paper](docs/research/crisis-strategy-paper.md) with companion [figure generation script](docs/research/generate_figures.py).
+For a detailed analysis of the crisis exploitation strategy, see the [research paper](research/papers/crisis-strategy/paper.md) with companion [figure generation script](research/papers/crisis-strategy/generate_figures.py).
 
 ### Web Dashboard
 
@@ -504,17 +504,17 @@ The Vite dev server runs at `http://localhost:5173` with HMR.
 
 #### Dashboard Commands
 
-| Command                       | Description                               |
-| ----------------------------- | ----------------------------------------- |
-| `just dashboard-sync`         | Install Python dashboard dependencies     |
-| `just dashboard-ui-sync`      | Install Node dashboard dependencies (bun) |
-| `just dashboard-ui-build`     | Build frontend for production             |
-| `just dashboard-ui-dev`       | Start Vite dev server with HMR            |
-| `just dashboard-dev`          | Start API server with hot-reload          |
-| `just dashboard`              | Start production dashboard                |
-| `just dashboard-ui-lint`      | Lint frontend code (Biome)                |
-| `just dashboard-ui-format`    | Format frontend code (Biome)              |
-| `just dashboard-ui-typecheck` | Type-check frontend (TypeScript)          |
+| Command                       | Description                                |
+| ----------------------------- | ------------------------------------------ |
+| `just dashboard-sync`         | Install Python dashboard dependencies      |
+| `just dashboard-ui-sync`      | Install Node dashboard dependencies (bun)  |
+| `just dashboard-ui-build`     | Build frontend for production              |
+| `just dashboard-ui-dev`       | Start Vite dev server with HMR             |
+| `just dashboard-dev`          | Start API server with hot-reload           |
+| `just dashboard`              | Start production dashboard                 |
+| `just dashboard-ui-lint`      | Lint frontend code (Biome)                 |
+| `just dashboard-ui-format`    | Format frontend code (Biome)               |
+| `just dashboard-ui-typecheck` | Type-check frontend (TypeScript)           |
 | `just dashboard-ui-validate`  | Run all frontend checks (lint + typecheck) |
 
 #### Keyboard Shortcuts
