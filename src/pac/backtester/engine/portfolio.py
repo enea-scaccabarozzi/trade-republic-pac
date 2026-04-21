@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -15,6 +16,7 @@ from pac.backtester.engine.actions import (
     PacAdjustment,
     PendingAction,
 )
+from pac.backtester.engine.tax import AssetTaxMeta, NoTaxRegime, TaxRegime
 from pac.models.portfolio import PortfolioSnapshot, Position
 
 log = structlog.get_logger()
@@ -50,6 +52,9 @@ class SimulatedPortfolio:
         settlement_fee: Decimal,
         spread_bps: Decimal,
         pac_execution_days: list[int],
+        tax_regime: TaxRegime | None = None,
+        asset_tax_meta: dict[str, AssetTaxMeta] | None = None,
+        rng: random.Random | None = None,
     ) -> None:
         self._assets = assets
         self._cash = cash
@@ -57,6 +62,9 @@ class SimulatedPortfolio:
         self._settlement_fee = settlement_fee
         self._spread_bps = spread_bps
         self._pac_execution_days = pac_execution_days
+        self._tax_regime = tax_regime or NoTaxRegime()
+        self._asset_tax_meta = asset_tax_meta or {}
+        self._rng = rng or random.Random()
         self._pending_actions: list[PendingAction] = []
         self._trade_log: list[ExecutedTrade] = []
         self._pac_months_applied: set[tuple[int, int, int]] = set()
@@ -161,6 +169,7 @@ class SimulatedPortfolio:
             )
 
             pos = self._assets[order.asset_id]
+            tax_amount = Decimal(0)
             if order.direction == "buy":
                 # Cash-sufficiency check: skip if not enough cash
                 if self._cash < order.amount_eur + self._settlement_fee:
@@ -201,7 +210,21 @@ class SimulatedPortfolio:
                     _CENTS,
                     rounding=ROUND_HALF_UP,
                 )
-                self._cash += actual_amount - self._settlement_fee
+                sell_cost_basis = (sell_qty * pos.avg_cost).quantize(
+                    _CENTS, rounding=ROUND_HALF_UP,
+                )
+                meta = self._asset_tax_meta.get(
+                    order.asset_id, AssetTaxMeta()
+                )
+                tax_result = self._tax_regime.compute_tax(
+                    proceeds=actual_amount,
+                    cost_basis=sell_cost_basis,
+                    asset_meta=meta,
+                    current_year=current_date.year,
+                )
+                tax_amount = tax_result.tax_owed
+
+                self._cash += actual_amount - self._settlement_fee - tax_amount
                 pos.quantity -= sell_qty
                 quantity = sell_qty
                 # Record the actual executed amount, not the requested amount
@@ -217,6 +240,7 @@ class SimulatedPortfolio:
                     quantity=quantity,
                     price=exec_price,
                     fee=self._settlement_fee,
+                    tax=tax_amount,
                 ),
             )
 
@@ -257,8 +281,11 @@ class SimulatedPortfolio:
             if bar is None or volume <= 0:
                 continue
 
-            # PAC buys at close price, no spread, no fee
-            quantity = (volume / bar.close).quantize(
+            # PAC buys at a random intraday price in [low, high], no spread, no fee
+            pac_price = bar.low + (bar.high - bar.low) * Decimal(
+                str(self._rng.random())
+            )
+            quantity = (volume / pac_price).quantize(
                 Decimal("0.000001"),
                 rounding=ROUND_HALF_UP,
             )
@@ -266,7 +293,7 @@ class SimulatedPortfolio:
             if self._cash < volume:
                 # Not enough cash — buy what we can
                 volume = self._cash
-                quantity = (volume / bar.close).quantize(
+                quantity = (volume / pac_price).quantize(
                     Decimal("0.000001"),
                     rounding=ROUND_HALF_UP,
                 )
@@ -289,7 +316,7 @@ class SimulatedPortfolio:
                     direction="buy",
                     amount_eur=volume,
                     quantity=quantity,
-                    price=bar.close,
+                    price=pac_price,
                     fee=Decimal(0),
                 ),
             )

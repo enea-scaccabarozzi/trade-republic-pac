@@ -4,7 +4,7 @@ Instructions for AI coding agents working on this repository.
 
 ## Project Overview
 
-Automated portfolio rebalancing assistant for Trade Republic. Reads portfolio positions via the `pytr` library (read-only WebSocket API), detects deviations from a configurable target allocation (default 70/15/15: Stocks/Gold/Bonds), and sends Telegram notifications with rebalancing recommendations. **Never executes trades.**
+Automated portfolio rebalancing assistant for Trade Republic. Reads portfolio positions via the `pytr` library (read-only WebSocket API), detects deviations from a configurable target allocation (default 70/15/15: Stocks/Gold/Bonds), and sends Telegram notifications with rebalancing recommendations. **Never executes trades.** The repository also includes an optional backtesting and research framework for strategy simulation, Monte Carlo analysis, and quantitative research experiments.
 
 ## Tech Stack
 
@@ -12,6 +12,7 @@ Automated portfolio rebalancing assistant for Trade Republic. Reads portfolio po
 - **uv** — package manager
 - **just** — command runner (see `Justfile`)
 - **Starlette** — ASGI web framework (webhook + job endpoints)
+- **FastAPI** — REST API for backtester and research routes
 - **pytr** — Trade Republic WebSocket client (read-only)
 - **python-telegram-bot** — Telegram bot API
 - **pydantic** — data models and configuration validation
@@ -19,6 +20,9 @@ Automated portfolio rebalancing assistant for Trade Republic. Reads portfolio po
 - **Jinja2** — template rendering (SandboxedEnvironment)
 - **structlog** — structured logging
 - **uvicorn** — ASGI server
+- **yfinance** — market price data for backtesting
+- **quantstats** — portfolio metrics and tearsheet generation
+- **React + Vite** — dashboard frontend (optional, built separately)
 
 ## Repository Structure
 
@@ -31,20 +35,33 @@ src/pac/
 ├── config/                   # Settings loaded from pac.yaml
 │   ├── models.py             # Pydantic config models (AppConfig, BrokerConfig, AssetConfig, etc.)
 │   └── loader.py             # YAML loading + ${ENV_VAR} interpolation
-├── models/                   # Pydantic data models (portfolio, signals)
+├── models/                   # Pydantic data models (portfolio, signals, market_data)
 ├── tr/                       # TRClient wrapper + tr_session() context manager
 ├── analysis/                 # Deviation calculation, PAC redistribution
 ├── rules/                    # SignalRule ABC+Generic, registry, auto-discovery
 │   └── builtin/              # Threshold, cycle inversion, PAC plan, crisis detection rules (6 crisis + composite)
 ├── delivery/                 # DeliveryChannel ABC+Generic, RenderedMessage, auto-discovery
 │   ├── base.py               # DeliveryChannel[ConfigT] ABC + RenderedMessage model
-│   ├── discovery.py           # discover_channels() scans channels/ subpackages
+│   ├── discovery.py          # discover_channels() scans channels/ subpackages
 │   └── channels/telegram/    # TelegramChannel, bot factory, formatting, keyboards
 ├── templates/                # Template engine + format adapters
 │   ├── engine.py             # TemplateEngine — Jinja2 SandboxedEnvironment + adapter injection
-│   └── adapters/             # FormatAdapter ABC + MarkdownV2, PlainText implementations
+│   ├── adapters/             # FormatAdapter ABC + MarkdownV2, PlainText implementations
 │   └── builtin/              # .j2 templates (threshold_alert, cycle_alert, pac_plan, portfolio_status, crisis_alert)
 └── orchestrator/             # Orchestrator class — framework-agnostic signal dispatch pipeline
+src/pac/backtester/
+├── data/                     # Price data provider (yfinance, proxy tickers)
+├── engine/                   # BacktestSimulator — Monte Carlo runner
+├── strategies/               # BacktestStrategy ABC+Generic, auto-discovery, builtin/
+├── metrics/                  # MetricsCalculator — quantstats aggregation (P5/median/P95)
+├── results/                  # ResultStore — timestamped JSON persistence
+├── research/                 # Research framework — ResearchContext, indicators, events, OOS
+│   ├── context.py            # ResearchContext zero-ceremony API
+│   ├── indicators.py         # IndicatorRegistry + opt-in packs
+│   ├── events.py             # EventCalendar + MarketEvent
+│   └── packs/                # tulipy_bridge/, crisis/
+├── api/                      # FastAPI REST API (research routes, run management)
+└── dashboard/                # React + Vite frontend (optional)
 tests/                        # Shared fixtures + integration tests
 docs/                         # Project documentation + ADRs
 scripts/                      # DX scaffolding & validation CLIs (scaffold_rule, scaffold_channel, validate_config)
@@ -53,43 +70,42 @@ research/                     # Research experiments, papers, strategy snapshots
 │   └── _template/            # Scaffold template for new experiments
 ├── papers/                   # Published research papers
 └── strategies/               # Named strategy parameter snapshots
-src/pac/backtester/
-├── research/                 # Research framework — ResearchContext, indicators, events, OOS
-│   ├── context.py            # ResearchContext zero-ceremony API
-│   ├── indicators.py         # IndicatorRegistry + opt-in packs
-│   ├── events.py             # EventCalendar + MarketEvent
-│   └── packs/                # tulipy_bridge/, crisis/
-├── api/                      # FastAPI REST API (research routes, run management)
 ```
 
 Each submodule has co-located `tests/`, `features/`, and `README.md`.
 
-## Key Conventions
+## Rules & Guidelines
 
-### Code Style
-- **Formatting:** ruff, 88 char line length
-- **Linting:** ruff (rule sets: E, F, I, UP, B, SIM, RUF)
-- **Type checking:** mypy strict mode — all code must have type hints
-- **Commits:** Conventional Commits (`feat(scope): description`)
+Detailed standards for specific concerns live in `.claude/rules/`. Load the relevant file before working in that area.
 
-### Testing
-- **Framework:** pytest with `asyncio_mode = "auto"`
-- **Location:** Co-located in each submodule's `tests/` directory; top-level `tests/` for shared fixtures and integration tests
-- **Run:** `just test` (or `just test -k test_name` for a single test)
-- **BDD:** Feature files in each submodule's `features/` directory
+| Rule File | Governs |
+|---|---|
+| `.claude/rules/bdd.md` | When and how to write BDD feature files and step definitions |
+| `.claude/rules/testing.md` | Testing philosophy, DI patterns, mocking boundaries, backtester test patterns |
+| `.claude/rules/documentation.md` | Doc standards, submodule README template, docstring style |
+| `.claude/rules/dependency-injection.md` | Module dependency declarations, DI conventions, import direction rules |
 
-### Commands
-- `just sync` — install/update dependencies
-- `just hooks-install` — install git hooks (pre-commit, commit-msg, pre-push)
-- `just validate` — run all checks (lint + typecheck + test)
-- `just format` — auto-format code
-- `just lint` — run ruff linter
-- `just typecheck` — run mypy
-- `just test` — run pytest
-- `just new-rule <name>` — scaffold a new signal rule in `src/pac/rules/builtin/`
-- `just new-channel <name>` — scaffold a new delivery channel in `src/pac/delivery/channels/`
-- `just validate-config` — validate `pac.yaml` against config schema
-- `just new-experiment <name>` — scaffold a new research experiment in `research/experiments/`
+## Module Dependency Map
+
+Quick-reference for understanding what each module depends on and who consumes it. Import direction must follow this map — circular imports are not permitted.
+
+| Module | Depends On | Consumed By |
+|---|---|---|
+| `models` | *(none — foundation)* | all other modules |
+| `config` | *(none — foundation)* | analysis, rules, orchestrator, backtester |
+| `tr` | models | orchestrator |
+| `analysis` | models, config | rules, orchestrator, backtester/engine |
+| `rules` | models, analysis, market_context | orchestrator, backtester/engine |
+| `delivery` | models | orchestrator, templates |
+| `templates` | delivery, models | orchestrator |
+| `orchestrator` | analysis, config, delivery, models, rules, templates, tr | app.py |
+| `backtester/data` | config, backtester.data.models | backtester/engine, backtester/research |
+| `backtester/engine` | analysis, backtester/data, backtester/results, backtester/strategies, config | backtester/research, runner |
+| `backtester/strategies` | models, analysis, backtester/engine | backtester/engine, backtester/research |
+| `backtester/metrics` | backtester/engine | runner |
+| `backtester/results` | models | backtester/engine, backtester/api |
+| `backtester/research` | backtester/data, backtester/engine, backtester/strategies, config, models, rules | scripts, notebooks |
+| `backtester/api` | backtester/results, backtester/research, config | dashboard |
 
 ## Important Patterns
 
@@ -97,7 +113,7 @@ Each submodule has co-located `tests/`, `features/`, and `README.md`.
 All Trade Republic API access goes through `tr_session()` (in `src/pac/tr/client.py`). It opens a WebSocket connection, yields a `TRClient`, and closes the connection on exit. Never hold connections open long-term.
 
 ### `SignalRule` ABC + Generic
-Signal rules use `ABC + Generic[ParamsT]` (nominal subtyping). Each rule declares a Pydantic params model via its Generic type arg — `__init_subclass__` auto-extracts `params_model`. Rules are stateless; typed params are passed to `evaluate()`. `evaluate()` accepts an optional `market_ctx: MarketContext | None` parameter (defaults to `None`); rules that don't need market data ignore it, while crisis rules use it for historical price indicator calculations. To add a new rule: subclass `SignalRule[YourParams]`, implement `name` and `evaluate()`, and place it in `src/pac/rules/builtin/`. The registry discovers rules automatically via `discover_rules()`.
+Signal rules use `ABC + Generic[ParamsT]` (nominal subtyping). Each rule declares a Pydantic params model via its Generic type arg — `__init_subclass__` auto-extracts `params_model`. Rules are stateless; typed params are passed to `evaluate()`. `evaluate()` accepts an optional `market_ctx: MarketContext | None` parameter (defaults to `None`); rules that don't need market data ignore it, while crisis rules use it for historical price indicator calculations. To add a new rule: subclass `SignalRule[YourParams]`, implement `name` and `evaluate()`, and place it in `src/pac/rules/builtin/`. The registry discovers rules automatically via `discover_rules()`. Rules implement `build_template_data()` to produce template-specific context.
 
 ### `DeliveryChannel` ABC + Generic
 Delivery channels use `ABC + Generic[ConfigT]` (same pattern as `SignalRule`). Each channel declares a Pydantic config model via its Generic type arg — `__init_subclass__` auto-extracts `config_model`. Channels implement `name`, `supported_formats`, and `send()`. Optional lifecycle hooks: `start()`, `stop()`, `process_update()`, `webhook_secret`. Interactive features (commands, keyboards) are channel-specific and not part of the ABC. To add a new channel: subclass `DeliveryChannel[YourConfig]`, implement the abstract methods, place a `channel.py` in `src/pac/delivery/channels/<name>/`. Discovery is automatic via `discover_channels()`.
@@ -106,10 +122,52 @@ Delivery channels use `ABC + Generic[ConfigT]` (same pattern as `SignalRule`). E
 Templates use a Jinja2 `SandboxedEnvironment` (`src/pac/templates/engine.py`). `FormatAdapter` ABC (`adapters/base.py`) defines formatting methods (bold, escape, literal, etc.) injected as Jinja2 globals — templates call `{{ bold(text) }}` without knowing the target format. Two adapters ship built-in: `MarkdownV2Adapter` (Telegram MarkdownV2 escaping) and `PlainTextAdapter` (no markup). `TemplateEngine.render()` takes a template name, data dict, and adapter, returning a `RenderedMessage`. The `literal()` method escapes structural characters (punctuation appearing as fixed text in templates). Four custom filters: `datefmt`, `numberfmt`, `pctfmt`, `eurfmt`.
 
 ### Orchestrator
-The `Orchestrator` class (`src/pac/orchestrator/orchestrator.py`) is the framework-agnostic dispatch pipeline. `Orchestrator.from_settings()` wires config → rules → templates → channels with zero network calls (serverless-safe cold starts). Key methods: `dispatch_signal()` (full pipeline: evaluate → render → send), `evaluate_signal()` (evaluate only, for interactive handlers), `get_portfolio_status()`, `compute_pac_plan()`. `app.py` is a thin HTTP adapter that delegates to `Orchestrator` — it handles auth and request routing only. Dynamic signal routing via `POST /jobs/signal/{signal_name}` replaces hardcoded per-signal routes. Channels receive the orchestrator via `set_orchestrator()` during startup for interactive DI. Rules implement `build_template_data()` to produce template-specific context.
+The `Orchestrator` class (`src/pac/orchestrator/orchestrator.py`) is the framework-agnostic dispatch pipeline. `Orchestrator.from_settings()` wires config → rules → templates → channels with zero network calls (serverless-safe cold starts). Key methods: `dispatch_signal()` (full pipeline: evaluate → render → send), `evaluate_signal()` (evaluate only, for interactive handlers), `get_portfolio_status()`, `compute_pac_plan()`. `app.py` is a thin HTTP adapter that delegates to `Orchestrator` — it handles auth and request routing only. Dynamic signal routing via `POST /jobs/signal/{signal_name}` replaces hardcoded per-signal routes. Channels receive the orchestrator via `set_orchestrator()` during startup for interactive DI.
 
 ### YAML Config System
-All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in `src/pac/config/loader.py`. Secrets use `${ENV_VAR}` interpolation — the loader substitutes env var values before pydantic validation. Config models live in `src/pac/config/models.py` (re-exported via `__init__.py`). Assets are dynamic string-based IDs, not a fixed enum.
+All configuration is loaded from a YAML file (`pac.yaml`) via `load_config()` in `src/pac/config/loader.py`. Secrets use `${ENV_VAR}` interpolation — the loader substitutes env var values before pydantic validation. Config models live in `src/pac/config/models.py` (re-exported via `__init__.py`). Assets are dynamic string-based IDs, not a fixed enum. Assets need a `ticker: EUNL.DE` field for yfinance resolution; proxy tickers (`proxy_ticker`, `proxy_end`) enable 30+ year backtests with pre-ETF data.
+
+### `MarketContext` Protocol
+`MarketContext` (`src/pac/market_context.py`) provides date-aware price access. Two implementations: `LiveMarketContext` (production, yfinance + cache) and `BacktestMarketContext` (injected by the simulator). Crisis rules require `MarketContext` — they return an empty list when `market_ctx is None` (graceful degradation). Pure indicator math lives in `_indicators.py`; both rules and composites call these functions directly.
+
+### `BacktestStrategy` ABC + Generic
+Backtest strategies use `ABC + Generic[ParamsT]` (stateful, unlike `SignalRule`). Strategies are auto-discovered via `discover_strategies()` scanning `pac.backtester.strategies.builtin`. The `BacktestStrategy.reset()` hook clears per-iteration state (e.g., cooldown dates) between Monte Carlo runs. The simulator reuses production `SignalRule` instances against synthetic `PortfolioSnapshot` — rules never know they're being backtested. `BacktestSimulator` runs Monte Carlo (N iterations); price data must be pre-loaded as `dict[ticker, PriceSeries]`.
+
+### `ResearchContext` API
+`ResearchContext.from_config()` (`src/pac/backtester/research/context.py`) is the zero-ceremony entry point for all research scripts. Quick-test mode (N=1, deterministic, ~10s) is the default. Key methods: `ctx.compare()` and `ctx.sweep()` for variant comparison and parameter sweeps; `ctx.holdout()`, `ctx.walk_forward()`, `ctx.leave_one_event_out()` for OOS validation; `ctx.quantstats()` and `ctx.quantstats_report()` for tearsheets. `IndicatorRegistry` starts empty — load packs via `register_pack("tulipy")` or `register_pack("crisis")`. `EventCalendar` is accessed via `ctx.calendars`.
+
+## Commands
+
+### Core
+- `just sync` — install/update dependencies
+- `just hooks-install` — install git hooks (pre-commit, commit-msg, pre-push)
+- `just validate` — run all checks (lint + typecheck + test)
+- `just format` — auto-format code
+- `just lint` — run ruff linter
+- `just typecheck` — run mypy
+- `just test` — run pytest
+
+### Scaffolding
+- `just new-rule <name>` — scaffold a new signal rule in `src/pac/rules/builtin/`
+- `just new-channel <name>` — scaffold a new delivery channel in `src/pac/delivery/channels/`
+- `just new-strategy <name>` — scaffold a new backtest strategy in `src/pac/backtester/strategies/builtin/`
+- `just new-experiment <name>` — scaffold a new research experiment in `research/experiments/`
+- `just validate-config` — validate `pac.yaml` against config schema
+
+### Backtester
+- `just backtest-sync` — install backtester optional dependencies
+- `just backtest` — run backtester CLI
+- `just backtest-validate` — validate backtester configuration
+- `just backtest-validate-quick` — quick validation (no network calls)
+
+### Dashboard
+- `just dashboard-sync` — install dashboard backend dependencies
+- `just dashboard` — start dashboard backend API server
+- `just dashboard-dev` — start dashboard backend in dev/reload mode
+- `just dashboard-ui-sync` — install dashboard frontend dependencies
+- `just dashboard-ui-dev` — start Vite dev server
+- `just dashboard-ui-build` — build frontend for production
+- `just dashboard-ui-validate` — lint + typecheck frontend
 
 ## Do NOT Modify
 

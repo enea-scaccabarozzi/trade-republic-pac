@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "basedpyright@claude-code-lsps": true,
+    "vtsls@claude-code-lsps": true
+  }
+}

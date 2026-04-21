@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -12,6 +13,7 @@ from pac.backtester.config import BacktestConfig
 from pac.backtester.data.models import Interval, PriceBar, PriceSeries
 from pac.backtester.engine.actions import Action
 from pac.backtester.engine.portfolio import SimulatedPortfolio, SimulatedPosition
+from pac.backtester.engine.tax import NoTaxRegime, TaxRegime
 from pac.backtester.strategies.base import BacktestStrategy
 from pac.config import Settings
 from pac.models.portfolio import PortfolioSnapshot
@@ -135,6 +137,8 @@ def make_portfolio(
     settlement_fee: Decimal = Decimal("1.00"),
     spread_bps: Decimal = Decimal("10"),
     pac_execution_days: list[int] | None = None,
+    tax_regime: TaxRegime | None = None,
+    rng: random.Random | None = None,
 ) -> SimulatedPortfolio:
     """Build a SimulatedPortfolio with 3 assets."""
     assets = {
@@ -166,6 +170,8 @@ def make_portfolio(
         settlement_fee=settlement_fee,
         spread_bps=spread_bps,
         pac_execution_days=pac_execution_days or [2, 16],
+        tax_regime=tax_regime or NoTaxRegime(),
+        rng=rng or random.Random(42),
     )
 
 

@@ -68,4 +68,5 @@ class ExecutedTrade(BaseModel, frozen=True):
     quantity: Decimal
     price: Decimal
     fee: Decimal
+    tax: Decimal = Decimal(0)
     skipped: bool = False

@@ -10,6 +10,10 @@ Shared Pydantic domain models — portfolio snapshots, positions, allocations, s
 | Consumed by | All other submodules — [`analysis`](../analysis/), [`rules`](../rules/), [`delivery`](../delivery/), [`templates`](../templates/), [`orchestrator`](../orchestrator/), [`tr`](../tr/) |
 | Boundary    | Domain data structures only — no I/O, no business logic                                                                                                                               |
 
+## Dependencies
+
+This module has no internal `pac` imports — it is the foundation layer. All other modules depend on it; it depends on none of them.
+
 ## Key Components
 
 | Component           | File           | Description                                                                     |

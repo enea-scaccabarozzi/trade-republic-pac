@@ -79,7 +79,7 @@ class TestRunBenchmark:
         for it1, it2 in zip(result1.iterations, result2.iterations, strict=False):
             assert it1.final_value == it2.final_value
 
-    def test_benchmark_all_iterations_identical(
+    def test_benchmark_all_iterations_have_positive_growth(
         self,
         benchmark_config: BacktestConfig,
     ) -> None:
@@ -93,7 +93,9 @@ class TestRunBenchmark:
             rng_seed=42,
         )
 
-        # With slippage=(0,0) in benchmark, all iterations should be identical
-        first_value = result.iterations[0].final_value
-        for iteration in result.iterations[1:]:
-            assert iteration.final_value == first_value
+        # All iterations should produce positive final values above initial cash.
+        # Intraday random PAC pricing means iterations are no longer identical
+        # even with slippage=(0,0); determinism across runs is verified separately.
+        initial_cash = benchmark_config.initial_cash
+        for iteration in result.iterations:
+            assert iteration.final_value > initial_cash

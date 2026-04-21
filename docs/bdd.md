@@ -33,20 +33,6 @@ If all three → write a feature file. If not → unit test is sufficient.
 | `src/pac/<module>/features/<name>.feature`  | Feature specification         |
 | `src/pac/<module>/tests/test_<name>_bdd.py` | Step definitions (pytest_bdd) |
 
-**Existing feature files (10 total, 69 scenarios):**
-
-| Feature File                                    | Module         | Scenarios | Description                                        |
-| ----------------------------------------------- | -------------- | --------- | -------------------------------------------------- |
-| `config/features/config_loading.feature`        | `config`       | 15        | YAML loading, env interpolation, schema validation |
-| `rules/features/threshold_rule.feature`         | `rules`        | 6         | Per-asset deviation threshold detection            |
-| `rules/features/cycle_rule.feature`             | `rules`        | 5         | Opposing deviation (cycle inversion) detection     |
-| `rules/features/rule_discovery.feature`         | `rules`        | 4         | Auto-discovery of SignalRule subclasses            |
-| `delivery/features/channel_discovery.feature`   | `delivery`     | 4         | Auto-discovery of DeliveryChannel subclasses       |
-| `delivery/features/telegram_delivery.feature`   | `delivery`     | 8         | Telegram send/lifecycle/webhook behavior           |
-| `templates/features/template_rendering.feature` | `templates`    | 7         | Template engine rendering with adapters            |
-| `templates/features/format_adapters.feature`    | `templates`    | 12        | MarkdownV2 and PlainText adapter formatting        |
-| `orchestrator/features/config_wiring.feature`   | `orchestrator` | 4         | Config → rules/channels/templates wiring           |
-| `orchestrator/features/signal_dispatch.feature` | `orchestrator` | 4         | End-to-end signal evaluate → render → send         |
 
 ## Anatomy of a Good Feature File
 
@@ -153,6 +139,30 @@ def scan_builtin(context: dict[str, Any]) -> None:
 def rules_include(context: dict[str, Any], name: str) -> None:
     assert name in context["rules"]
 ```
+
+### Backtester Example (from `test_indicator_registry_bdd.py`)
+
+Feature files work the same way for stateful, multi-step backtester components. The key is still describing observable behavior without exposing implementation internals:
+
+```gherkin
+Feature: Indicator Registry
+
+  Scenario: Registry starts with no indicators registered
+    Given a new indicator registry with price data
+    Then no indicators are registered
+
+  Scenario: Registering the crisis pack makes crisis indicators available
+    Given a new indicator registry with price data
+    When the "crisis" indicator pack is registered
+    Then the registry contains the "equity_drawdown" indicator
+
+  Scenario: Registering an unknown pack raises a clear error
+    Given a new indicator registry with price data
+    When the "nonexistent" indicator pack is registered
+    Then a ValueError is raised mentioning the unknown pack name
+```
+
+Step definitions follow the same `ctx` dict + real fixtures pattern — the difference is the fixtures provide pre-built `PriceSeries` objects instead of portfolio snapshots.
 
 ## Full Workflow: Adding a New BDD Feature
 

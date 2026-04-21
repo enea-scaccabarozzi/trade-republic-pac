@@ -10,6 +10,10 @@ Configuration subsystem — loads and validates application settings from a YAML
 | Consumed by | All other submodules — [`analysis`](../analysis/), [`rules`](../rules/), [`delivery`](../delivery/), [`orchestrator`](../orchestrator/), [`tr`](../tr/) |
 | Boundary    | YAML loading, env var interpolation, Pydantic validation                                                                                                |
 
+## Dependencies
+
+This module has no internal `pac` imports — it is the foundation layer. Config models and the loader depend only on `pydantic` and `pyyaml` (external libraries).
+
 ## Key Components
 
 | Component       | File        | Description                                                        |

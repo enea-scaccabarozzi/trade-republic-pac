@@ -10,6 +10,16 @@ Signal rule engine — evaluates portfolio state against configurable rules and 
 | Consumed by | [`orchestrator`](../orchestrator/) (`SignalRegistry` evaluates signals, `build_template_data` produces template context) |
 | Boundary    | Rule evaluation, param validation, signal generation                                                                     |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Input and output types for rule evaluation | `Signal`, `PortfolioSnapshot`, `SignalSeverity` |
+| `analysis` | `pac.analysis` | Deviation computation required by most rules' `evaluate()` implementations | `DeviationReport`, `DeviationResult` |
+| `market_context` | `pac.market_context` | Protocol for date-aware price access used by crisis rules | `MarketContext` |
+
 ## Key Components
 
 | Component                  | File                                | Description                                                                |

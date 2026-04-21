@@ -137,14 +137,14 @@ class MarketDataProvider:
 
         bars = [
             PriceBar(
-                date=idx.date(),
-                open=Decimal(str(row["Open"])),
-                high=Decimal(str(row["High"])),
-                low=Decimal(str(row["Low"])),
-                close=Decimal(str(row["Close"])),
-                volume=int(row["Volume"]),
+                date=row.Index.date(),
+                open=Decimal(str(row.Open)),
+                high=Decimal(str(row.High)),
+                low=Decimal(str(row.Low)),
+                close=Decimal(str(row.Close)),
+                volume=int(row.Volume),
             )
-            for idx, row in df.iterrows()
+            for row in df.itertuples()
         ]
         series = PriceSeries(
             ticker=request.ticker,
@@ -166,7 +166,10 @@ class MarketDataProvider:
         self,
         requests: list[DataRequest],
     ) -> dict[str, PriceSeries]:
-        """Fetch data for multiple tickers.
+        """Fetch data for multiple tickers concurrently.
+
+        Uses a thread pool for parallel I/O. Falls back to sequential
+        for single requests.
 
         Args:
             requests: List of data requests (one per ticker).
@@ -174,7 +177,21 @@ class MarketDataProvider:
         Returns:
             Mapping of ticker → PriceSeries.
         """
-        return {req.ticker: self.fetch(req) for req in requests}
+        if len(requests) <= 1:
+            return {req.ticker: self.fetch(req) for req in requests}
+
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        results: dict[str, PriceSeries] = {}
+        max_workers = min(len(requests), 8)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(self.fetch, req): req.ticker for req in requests
+            }
+            for future in as_completed(futures):
+                ticker = futures[future]
+                results[ticker] = future.result()
+        return results
 
     def fetch_with_proxy(
         self,

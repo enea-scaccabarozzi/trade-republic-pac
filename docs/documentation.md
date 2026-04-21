@@ -121,6 +121,7 @@ def calculate_deviations(
 | `docs/architecture/ADR-*.md`   | Architecture decisions with rationale             | How-to instructions          |
 | `pac.yaml.example`             | Config schema reference (by example)              | Explanatory prose            |
 | `src/pac/<module>/README.md`   | Module purpose, components, usage, commands       | Root-level project info      |
+| `src/pac/backtester/<submodule>/README.md` | Backtester submodule purpose, components, dependency table | Root-level project info |
 | Docstrings (in `.py` files)    | API contract: args, returns, raises, brief why    | Implementation walk-throughs |
 | Code comments (in `.py` files) | "Why" for non-obvious implementation choices      | API documentation            |
 

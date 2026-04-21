@@ -10,6 +10,15 @@ Format-agnostic message rendering via Jinja2 `SandboxedEnvironment` and pluggabl
 | Consumed by | [`orchestrator`](../orchestrator/) (calls `render()` in the dispatch pipeline)            |
 | Boundary    | Template loading, adapter-injected formatting, rendered message production                |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `delivery` | `pac.delivery` | `RenderedMessage` is the output type of `TemplateEngine.render()` — owned by the delivery layer | `RenderedMessage` |
+| `models` | `pac.models` | Signal severity used to classify templates by urgency level | `SignalSeverity` |
+
 ## Key Components
 
 | Component           | File                      | Description                                                              |

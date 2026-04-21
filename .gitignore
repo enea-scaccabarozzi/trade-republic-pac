@@ -18,3 +18,7 @@ htmlcov/
 
 # Environment secrets
 .env
+
+# Claude
+
+.claude/settings.local.json

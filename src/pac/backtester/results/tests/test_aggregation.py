@@ -21,6 +21,7 @@ from pac.backtester.results.tests.conftest import (
     _make_metric_set,
     _make_pac_trade,
     _make_rebalance_trade,
+    _make_taxed_rebalance_trade,
 )
 
 
@@ -216,6 +217,34 @@ class TestComputeSummary:
         assert summary.total_fees.p5 >= 0
         assert summary.total_fees.median >= 0
         assert summary.total_fees.p95 >= 0
+
+    def test_total_tax_is_none_when_no_tax(self) -> None:
+        # Trades with zero tax — summary.total_tax must be None
+        config = _make_config()
+        iterations = [
+            _make_iteration(
+                [10000, 11000],
+                iteration=0,
+                trades=[_make_pac_trade(date(2024, 1, 2))],
+            ),
+        ]
+        summary = _compute_summary(iterations, iterations[0], config)
+        assert summary.total_tax is None
+
+    def test_total_tax_ci_when_trades_have_tax(self) -> None:
+        # One iteration with 10.0 tax — CI should report that value
+        config = _make_config()
+        taxed = _make_taxed_rebalance_trade(date(2024, 1, 5), tax=10.0)
+        iterations = [
+            _make_iteration(
+                [10000, 11000],
+                iteration=0,
+                trades=[taxed],
+            ),
+        ]
+        summary = _compute_summary(iterations, iterations[0], config)
+        assert summary.total_tax is not None
+        assert summary.total_tax.median == pytest.approx(10.0)
 
 
 class TestMapMetrics:

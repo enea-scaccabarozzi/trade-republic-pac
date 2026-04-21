@@ -10,6 +10,16 @@ ABC+Generic framework for backtest strategies. Strategies translate signals into
 | Consumed by | [`engine.BacktestSimulator`](../engine/simulator.py) (called per trading day), CLI interface (Phase 6)                                                      |
 | Boundary    | Pure computation — no I/O, stateful across time steps within a Monte Carlo iteration                                                                        |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Portfolio and signal types passed to `on_signals()` on each simulation tick | `PortfolioSnapshot`, `Signal` |
+| `analysis` | `pac.analysis` | Deviation report passed to `on_signals()` for allocation-aware decision making | `DeviationReport` |
+| `backtester/engine` | `pac.backtester.engine` | Action types returned by strategies to the engine | `Action`, `PacAdjustment`, `HardRebalanceOrder` |
+
 ## Key Components
 
 | Component               | File                        | Description                                                                      |

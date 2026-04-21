@@ -233,6 +233,7 @@ class TestQuantstatsReport:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xdist_group("matplotlib")
 class TestQuantstatsPlot:
     def setup_method(self) -> None:
         plt.close("all")
@@ -323,6 +324,7 @@ class TestQuantstatsRolling:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.xdist_group("matplotlib")
 class TestQuantstatsSavePlots:
     def setup_method(self) -> None:
         plt.close("all")

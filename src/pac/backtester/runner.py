@@ -17,8 +17,6 @@ from pac.backtester.data.models import DataRequest, PriceSeries
 from pac.backtester.data.provider import MarketDataProvider
 from pac.backtester.data.proxy_quality import assess_proxy_quality
 from pac.backtester.engine.simulator import (
-    BacktestSimulator,
-    IterationResult,
     SimulationResult,
     collect_indicator_meta,
 )
@@ -28,7 +26,7 @@ from pac.backtester.results.models import RunResult
 from pac.backtester.results.store import ResultStore
 from pac.backtester.strategies.discovery import discover_strategies
 from pac.config.loader import load_config
-from pac.config.models import Settings
+from pac.config.models import AssetConfig, Settings
 from pac.rules.discovery import discover_rules
 from pac.rules.registry import SignalRegistry
 
@@ -109,19 +107,35 @@ def run_pipeline(
 
     # Step 3: Fetch market data
     try:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         provider = MarketDataProvider()
-        price_data: dict[str, PriceSeries] = {}
-        for a in settings.assets:
-            if a.ticker is None:
-                continue
+        assets_with_tickers = [a for a in settings.assets if a.ticker]
+
+        def _fetch_asset(a: AssetConfig) -> tuple[str, PriceSeries]:
             series = provider.fetch_with_proxy(
-                ticker=a.ticker,
+                ticker=a.ticker,  # type: ignore[arg-type]
                 start=config.start_date,
                 end=config.end_date,
                 proxy_chain=a.proxy_chain or None,
                 primary_currency=a.currency,
             )
-            price_data[a.ticker] = series
+            return a.ticker, series  # type: ignore[return-value]
+
+        price_data: dict[str, PriceSeries] = {}
+        if len(assets_with_tickers) <= 1:
+            for a in assets_with_tickers:
+                ticker, series = _fetch_asset(a)
+                price_data[ticker] = series
+        else:
+            max_workers = min(len(assets_with_tickers), 8)
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(_fetch_asset, a): a for a in assets_with_tickers
+                }
+                for future in as_completed(futures):
+                    ticker, series = future.result()
+                    price_data[ticker] = series
     except ImportError as e:
         raise PipelineError(
             "market_data",
@@ -164,21 +178,18 @@ def run_pipeline(
         ) from e
     strategy = strategy_cls(params)
 
-    # Step 6: Run MC simulation with progress callback
-    simulator = BacktestSimulator(
+    # Step 6: Run MC simulation (parallel for N>1, in-process for N=1)
+    from pac.backtester.engine.simulator import run_iterations_parallel
+
+    iterations = run_iterations_parallel(
         config,
         settings,
         price_data,
         registry,
         strategy,
-        rng_seed=seed,
+        seed=seed,
+        on_progress=on_progress,
     )
-    total = config.monte_carlo_iterations
-    iterations: list[IterationResult] = []
-    for i in range(total):
-        iterations.append(simulator.run_iteration(i))
-        if on_progress is not None:
-            on_progress(i + 1, total)
 
     # Step 7: Compute metrics report
     sim_result = SimulationResult(config=config, iterations=iterations)

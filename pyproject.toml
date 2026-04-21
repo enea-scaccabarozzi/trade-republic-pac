@@ -77,7 +77,7 @@ exclude = ["dashboard\\.legacy"]
 testpaths = ["src", "tests"]
 asyncio_mode = "auto"
 timeout = 30
-addopts = "--ignore-glob=**/dashboard.legacy/**"
+addopts = "--ignore-glob=**/dashboard.legacy/** -n auto --dist loadscope"
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from pac.backtester.contribution_config import ContributionConfig
+
 VALID_METRICS: frozenset[str] = frozenset(
     {"sortino", "calmar", "max_drawdown", "cagr", "sharpe", "volatility"}
 )
@@ -19,7 +21,7 @@ class BacktestConfig(BaseModel, frozen=True):
     start_date: date
     end_date: date
     initial_cash: Decimal = Field(default=Decimal("10000"), ge=0)
-    monthly_contribution: Decimal = Field(default=Decimal("500"), ge=0)
+    monthly_contribution: Decimal | ContributionConfig = Field(default=Decimal("500"))
     pac_execution_days: list[int] = Field(default=[2, 16])
     settlement_fee: Decimal = Field(default=Decimal("1.00"), ge=0)
     spread_bps: Decimal = Field(default=Decimal("10"), ge=0)
@@ -34,6 +36,14 @@ class BacktestConfig(BaseModel, frozen=True):
     benchmark: bool = Field(
         default=True,
         description="Compare against passive buy-and-hold",
+    )
+    tax_regime: str = Field(
+        default="italian",
+        description="Tax regime to apply ('italian', 'none')",
+    )
+    tax_params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Regime-specific parameters",
     )
 
     @model_validator(mode="after")

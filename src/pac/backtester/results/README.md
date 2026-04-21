@@ -10,6 +10,14 @@ Frontend-agnostic JSON sidecar for backtest results. Converts a `BacktestReport`
 | `build_run_result()` | Converts `BacktestReport` → `RunResult` with MC aggregation |
 | `ResultStore`        | Save/load/list/delete JSON files in `.pac/backtests/`       |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Domain model types serialised into the JSON result schema | `PortfolioSnapshot` |
+
 ## JSON Schema
 
 ```json

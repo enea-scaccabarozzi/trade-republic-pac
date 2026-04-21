@@ -185,8 +185,14 @@ def _then_total_invested(ctx: dict[str, Any]) -> None:
     config = result.config
     # PAC trades from median iteration
     pac_count = len([t for t in result.trades if t.type == "pac_execution"])
+    effective_contribution: Decimal = (
+        config.monthly_contribution
+        if isinstance(config.monthly_contribution, Decimal)
+        else (config.monthly_contribution.min + config.monthly_contribution.max)
+        / Decimal("2")
+    )
     contribution_per_pac = float(
-        config.monthly_contribution / Decimal(len(config.pac_execution_days)),
+        effective_contribution / Decimal(len(config.pac_execution_days)),
     )
     expected = float(config.initial_cash) + contribution_per_pac * pac_count
     assert abs(result.summary.total_invested - expected) < 0.01

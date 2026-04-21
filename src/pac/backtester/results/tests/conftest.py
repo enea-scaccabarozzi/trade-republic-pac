@@ -90,6 +90,30 @@ def _make_pac_trade(
     )
 
 
+def _make_taxed_rebalance_trade(
+    d: date,
+    asset_id: str = "bonds",
+    direction: Literal["buy", "sell"] = "sell",
+    amount: float = 100.0,
+    price: float = 50.0,
+    tax: float = 10.0,
+) -> ExecutedTrade:
+    """Build a hard rebalance trade with non-zero tax (e.g., a taxed sell)."""
+    qty = amount / price
+    return ExecutedTrade(
+        date=d,
+        type="hard_rebalance",
+        asset_id=asset_id,
+        direction=direction,
+        amount_eur=Decimal(str(amount)),
+        quantity=Decimal(str(qty)),
+        price=Decimal(str(price)),
+        fee=Decimal("1.00"),
+        tax=Decimal(str(tax)),
+        skipped=False,
+    )
+
+
 def _make_rebalance_trade(
     d: date,
     asset_id: str = "bonds",

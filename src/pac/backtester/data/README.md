@@ -10,6 +10,16 @@ Market data access layer for the backtester. Fetches historical OHLCV prices via
 | Consumed by | Backtester simulation engine (Phase 2)                                                  |
 | Boundary    | HTTP fetch (yfinance), filesystem cache read/write, Pydantic OHLCV models               |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `config` | `pac.config` | Asset configuration supplies the `ticker` fields used to resolve yfinance symbols | `Settings`, `AssetConfig` |
+
+Note: `backtester/data` defines `PriceSeries` and `PriceBar` in `data/models.py`, re-exported from `pac.models.market_data`. This module has no other internal pac dependencies.
+
 ## Key Components
 
 | Component            | File          | Description                                                              |

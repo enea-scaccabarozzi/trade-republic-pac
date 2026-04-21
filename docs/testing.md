@@ -110,6 +110,58 @@ def mock_tr_session(sample_snapshot: PortfolioSnapshot) -> Any:
         yield p
 ```
 
+### Faking MarketDataProvider (Backtester Tests)
+
+The backtester tests inject pre-built `PriceSeries` objects directly — no yfinance calls:
+
+```python
+from pac.backtester.data.models import PriceBar, PriceSeries
+from decimal import Decimal
+from datetime import date
+
+@pytest.fixture
+def price_data() -> dict[str, PriceSeries]:
+    bars = [
+        PriceBar(
+            date=date(2023, 1, d), open=Decimal("100"), high=Decimal("105"),
+            low=Decimal("98"), close=Decimal("102"), volume=1000,
+        )
+        for d in range(2, 32)
+    ]
+    return {"stocks": PriceSeries(ticker="EUNL.DE", bars=bars)}
+```
+
+### Testing BacktestStrategy
+
+`BacktestStrategy.reset()` clears per-iteration state (e.g., cooldown dates). Tests must verify that `reset()` actually resets the strategy:
+
+```python
+def test_cooldown_clears_after_reset(strategy, signals, snapshot, report):
+    # first call sets cooldown
+    strategy.on_signals(signals, snapshot, report, date(2023, 1, 10))
+    strategy.reset()
+    # should fire again after reset, not be suppressed by cooldown
+    result = strategy.on_signals(signals, snapshot, report, date(2023, 1, 11))
+    assert len(result) > 0
+```
+
+### Monte Carlo: Fast Deterministic Fixture
+
+Use `monte_carlo_iterations=1` for tests that need a full simulation run but should be fast:
+
+```python
+@pytest.fixture
+def backtest_config() -> BacktestConfig:
+    return BacktestConfig(
+        strategy="pac_alignment",
+        start_date=date(2022, 1, 1),
+        end_date=date(2022, 12, 31),
+        initial_cash=Decimal("10000"),
+        monthly_contribution=Decimal("500"),
+        monte_carlo_iterations=1,
+    )
+```
+
 ## Mocking Boundaries
 
 | Boundary                 | Mock? | How                                                    | Example File                              |
@@ -146,6 +198,7 @@ just test                               # all tests
 just test -k test_deviation             # single test by name
 just test -k "test_config and not bdd"  # unit tests only for config
 just test -k test_threshold_rule_bdd    # single BDD feature
+just test -k backtester                 # backtester tests only
 just validate                           # lint + typecheck + test
 ```
 

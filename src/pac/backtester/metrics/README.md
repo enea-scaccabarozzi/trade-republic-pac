@@ -10,6 +10,14 @@ Performance metrics framework for the backtester. Computes per-iteration risk/re
 | Consumed by | Backtester CLI (Phase 6), strategy comparison workflows                                                                                                                                                                                                                                 |
 | Boundary    | Pure computation — no I/O, no network calls                                                                                                                                                                                                                                             |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `backtester/engine` | `pac.backtester.engine` | Per-iteration simulation results aggregated into metric distributions | `IterationResult` |
+
 ## Key Components
 
 | Component             | File            | Description                                                                                 |

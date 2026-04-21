@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import random
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -14,8 +16,10 @@ from pac.backtester.config import BacktestConfig
 from pac.backtester.data.models import PriceBar, PriceSeries
 from pac.backtester.engine.actions import ExecutedTrade
 from pac.backtester.engine.clock import SimulationClock
+from pac.backtester.engine.contributions import resolve_contribution
 from pac.backtester.engine.market_context import BacktestMarketContext
 from pac.backtester.engine.portfolio import SimulatedPortfolio, SimulatedPosition
+from pac.backtester.engine.tax import AssetTaxMeta, resolve_tax_regime
 from pac.backtester.results.models import (
     IndicatorDataPoint,
     IndicatorMeta,
@@ -48,6 +52,7 @@ class IterationResult(BaseModel, frozen=True):
     daily_values: list[DayResult]
     trades: list[ExecutedTrade]
     final_value: Decimal
+    total_tax_paid: Decimal = Decimal(0)
     indicator_snapshots: dict[str, list[IndicatorDataPoint]] = {}
     signal_log: list[SignalRecord] = []
     strategy_events: list[StrategyEvent] = []
@@ -119,10 +124,28 @@ class BacktestSimulator:
             pac_execution_days=config.pac_execution_days,
         )
 
-        # Initial PAC volumes: distribute monthly_contribution by target allocation
+        # Resolve tax regime
+        self._tax_regime = resolve_tax_regime(
+            config.tax_regime, config.tax_params
+        )
+
+        # Build asset tax metadata from settings
+        self._asset_tax_meta: dict[str, AssetTaxMeta] = {
+            a.id: AssetTaxMeta(**a.tax_meta) for a in settings.assets
+        }
+
+        # Initial PAC volumes: distribute monthly_contribution by target allocation.
+        # For stochastic ContributionConfig, seed with the mean amount; Task 7 wires
+        # per-execution sampling so this seed is overwritten at each PAC date.
+        seed_contribution: Decimal = (
+            config.monthly_contribution
+            if isinstance(config.monthly_contribution, Decimal)
+            else (config.monthly_contribution.min + config.monthly_contribution.max)
+            / Decimal("2")
+        )
         targets = settings.target_allocations
         self._initial_pac_volumes: dict[str, Decimal] = {
-            aid: (config.monthly_contribution * pct / Decimal(100))
+            aid: (seed_contribution * pct / Decimal(100))
             for aid, pct in targets.items()
         }
 
@@ -143,6 +166,9 @@ class BacktestSimulator:
             settlement_fee=self._config.settlement_fee,
             spread_bps=self._config.spread_bps,
             pac_execution_days=self._config.pac_execution_days,
+            tax_regime=self._tax_regime,
+            asset_tax_meta=self._asset_tax_meta,
+            rng=self._rng,
         )
 
     def _get_prices_for_date(self, d: date) -> dict[str, PriceBar]:
@@ -191,10 +217,13 @@ class BacktestSimulator:
     def run_iteration(self, iteration: int) -> IterationResult:
         """Run a single Monte Carlo iteration."""
         self._strategy.reset()
+        self._tax_regime.reset()
         portfolio = self._build_portfolio()
         slippage = self._sample_slippage()
         daily_values: list[DayResult] = []
         trading_days = list(self._clock)
+        contribution_dist = resolve_contribution(self._config.monthly_contribution)
+        sampled_months: dict[tuple[int, int], Decimal] = {}
 
         # Build indicator rule list once
         indicator_rules: list[tuple[Any, Any]] = []
@@ -223,6 +252,11 @@ class BacktestSimulator:
             # 2. On PAC dates: let strategy adjust volumes, then execute PAC
             pac_day = self._clock.which_pac_day(d)
             if pac_day is not None:
+                month_key = (d.year, d.month)
+                if month_key not in sampled_months:
+                    sampled_months[month_key] = contribution_dist.sample(self._rng)
+                monthly_amount = sampled_months[month_key]
+
                 # Build snapshot for strategy before PAC execution
                 pre_pac_snapshot = portfolio.snapshot(d, prices)
                 pre_pac_report = calculate_deviations(
@@ -240,7 +274,7 @@ class BacktestSimulator:
                 portfolio.execute_pac(
                     d,
                     prices,
-                    self._config.monthly_contribution,
+                    monthly_amount,
                     pac_day,
                 )
 
@@ -314,6 +348,9 @@ class BacktestSimulator:
                             IndicatorDataPoint(date=d, value=value),
                         )
 
+        total_tax = sum(
+            (t.tax for t in portfolio.trade_log), Decimal(0)
+        )
         return IterationResult(
             iteration=iteration,
             daily_values=daily_values,
@@ -323,6 +360,7 @@ class BacktestSimulator:
                 if daily_values
                 else self._config.initial_cash
             ),
+            total_tax_paid=total_tax,
             indicator_snapshots=dict(indicator_accumulators),
             signal_log=signal_log_entries,
             strategy_events=strategy_events_acc,
@@ -347,6 +385,131 @@ class BacktestSimulator:
 
         log.info("backtest_complete", iterations=len(iterations))
         return SimulationResult(config=self._config, iterations=iterations)
+
+
+def _iteration_worker(
+    config: BacktestConfig,
+    settings: Settings,
+    price_data: dict[str, PriceSeries],
+    signal_configs: list[SignalConfig],
+    strategy_name: str,
+    strategy_params: dict[str, Any],
+    iteration: int,
+    seed: int,
+) -> IterationResult:
+    """Top-level picklable function for parallel MC execution.
+
+    Reconstructs registry and strategy from scratch in each worker process
+    since those objects are not picklable.
+
+    Args:
+        config: Backtest configuration.
+        settings: Application settings.
+        price_data: Pre-loaded price series keyed by ticker.
+        signal_configs: Signal rule configurations (unused here; registry
+            is rebuilt from discovery).
+        strategy_name: Name of the strategy to instantiate.
+        strategy_params: Raw params dict to validate against params_model.
+        iteration: Iteration index (determines seed offset).
+        seed: Base RNG seed; worker uses seed + iteration.
+
+    Returns:
+        IterationResult for this single iteration.
+    """
+    from pac.backtester.strategies.discovery import discover_strategies
+    from pac.rules.discovery import discover_rules
+
+    rule_classes = discover_rules()
+    registry = SignalRegistry()
+    for rule_cls in rule_classes.values():
+        registry.register(rule_cls)
+
+    strategies = discover_strategies()
+    strategy_cls = strategies[strategy_name]
+    params = strategy_cls.params_model.model_validate(strategy_params)
+    strategy = strategy_cls(params)
+
+    simulator = BacktestSimulator(
+        config, settings, price_data, registry, strategy,
+        rng_seed=seed + iteration,
+    )
+    return simulator.run_iteration(iteration)
+
+
+def run_iterations_parallel(
+    config: BacktestConfig,
+    settings: Settings,
+    price_data: dict[str, PriceSeries],
+    registry: SignalRegistry,
+    strategy: BacktestStrategy[Any],
+    *,
+    seed: int | None = None,
+    max_workers: int | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> list[IterationResult]:
+    """Run Monte Carlo iterations in parallel using ProcessPoolExecutor.
+
+    For N=1 (quick-test mode), runs in-process to avoid pool overhead.
+    For N>1, dispatches each iteration to a separate worker process, with
+    each worker receiving seed + iteration as its RNG seed — matching the
+    sequential baseline.
+
+    Args:
+        config: Backtest configuration (monte_carlo_iterations controls N).
+        settings: Application settings.
+        price_data: Pre-loaded price series keyed by ticker.
+        registry: Signal registry (used only for N=1 in-process path).
+        strategy: Instantiated strategy (used only for N=1 in-process path).
+        seed: Base RNG seed; iteration i uses seed + i.
+        max_workers: Maximum worker processes. Defaults to cpu_count.
+        on_progress: Called after each completed iteration with (done, total).
+
+    Returns:
+        List of IterationResult, one per MC iteration (order may differ from
+        sequential; sort by .iteration if order matters).
+    """
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    n = config.monte_carlo_iterations
+    base_seed = seed or 0
+
+    if n <= 1:
+        sim = BacktestSimulator(
+            config, settings, price_data, registry, strategy,
+            rng_seed=base_seed,
+        )
+        result = sim.run_iteration(0)
+        if on_progress:
+            on_progress(1, 1)
+        return [result]
+
+    workers = min(
+        max_workers or os.cpu_count() or 4,
+        n,
+    )
+
+    results: list[IterationResult] = []
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        futures = {
+            pool.submit(
+                _iteration_worker,
+                config,
+                settings,
+                price_data,
+                settings.signals,
+                config.strategy,
+                config.strategy_params,
+                i,
+                base_seed,
+            ): i
+            for i in range(n)
+        }
+        for future in as_completed(futures):
+            results.append(future.result())
+            if on_progress:
+                on_progress(len(results), n)
+
+    return results
 
 
 def collect_indicator_meta(

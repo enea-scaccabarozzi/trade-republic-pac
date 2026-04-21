@@ -28,18 +28,15 @@ def _completed(
 # === _run_gcloud ===
 
 
+@pytest.fixture(autouse=True)
+def _reset_active_account(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reset _ACTIVE_ACCOUNT to None before each test."""
+    import scripts.setup_gcp as gcp
+
+    monkeypatch.setattr(gcp, "_ACTIVE_ACCOUNT", None)
+
+
 class TestRunGcloud:
-    def setup_method(self) -> None:
-        import scripts.setup_gcp as gcp
-
-        self._orig = gcp._ACTIVE_ACCOUNT
-        gcp._ACTIVE_ACCOUNT = None
-
-    def teardown_method(self) -> None:
-        import scripts.setup_gcp as gcp
-
-        gcp._ACTIVE_ACCOUNT = self._orig
-
     @patch("subprocess.run", return_value=_completed(stdout="ok"))
     def test_returns_result_on_success(self, mock_run: MagicMock) -> None:
         from scripts.setup_gcp import _run_gcloud
@@ -67,49 +64,29 @@ class TestRunGcloud:
 
     @patch("subprocess.run", return_value=_completed(stdout="ok"))
     def test_prepends_gcloud_to_args(self, mock_run: MagicMock) -> None:
-        import scripts.setup_gcp as gcp
+        from scripts.setup_gcp import _run_gcloud
 
-        orig = gcp._ACTIVE_ACCOUNT
-        gcp._ACTIVE_ACCOUNT = None
-        try:
-            gcp._run_gcloud(["projects", "list"])
-            cmd = mock_run.call_args[0][0]
-            assert cmd[0] == "gcloud"
-            assert cmd[1:] == ["projects", "list"]
-        finally:
-            gcp._ACTIVE_ACCOUNT = orig
+        _run_gcloud(["projects", "list"])
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "gcloud"
+        assert cmd[1:] == ["projects", "list"]
 
     @patch("subprocess.run", return_value=_completed(stdout="ok"))
     def test_injects_account_flag_when_active_account_set(
-        self, mock_run: MagicMock
+        self, mock_run: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import scripts.setup_gcp as gcp
 
-        orig = gcp._ACTIVE_ACCOUNT
-        gcp._ACTIVE_ACCOUNT = "user@example.com"
-        try:
-            gcp._run_gcloud(["projects", "list"])
-            cmd = mock_run.call_args[0][0]
-            assert cmd[:4] == ["gcloud", "--account", "user@example.com", "projects"]
-        finally:
-            gcp._ACTIVE_ACCOUNT = orig
+        monkeypatch.setattr(gcp, "_ACTIVE_ACCOUNT", "user@example.com")
+        gcp._run_gcloud(["projects", "list"])
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:4] == ["gcloud", "--account", "user@example.com", "projects"]
 
 
 # === Account selection ===
 
 
 class TestSelectAccount:
-    def setup_method(self) -> None:
-        import scripts.setup_gcp as gcp
-
-        self._orig = gcp._ACTIVE_ACCOUNT
-        gcp._ACTIVE_ACCOUNT = None
-
-    def teardown_method(self) -> None:
-        import scripts.setup_gcp as gcp
-
-        gcp._ACTIVE_ACCOUNT = self._orig
-
     def test_uses_provided_account_directly(self) -> None:
         import scripts.setup_gcp as gcp
 

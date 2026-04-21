@@ -77,6 +77,7 @@ class SummaryStats(BaseModel, frozen=True):
     total_fees: ConfidenceInterval
     total_trades: ConfidenceInterval
     total_pac_executions: int
+    total_tax: ConfidenceInterval | None = None
 
 
 class IndicatorMeta(BaseModel, frozen=True):

@@ -10,6 +10,15 @@ Portfolio deviation calculation and PAC redistribution planning. Pure computatio
 | Consumed by | [`rules`](../rules/) (`evaluate()` calls `calculate_deviations`), [`orchestrator`](../orchestrator/) (`compute_pac_plan`) |
 | Boundary    | Deviation math, severity classification, projection-based PAC distribution                                                |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Core portfolio and signal types used as function inputs and outputs | `PortfolioSnapshot`, `SignalSeverity` |
+| `config` | `pac.config` | Application settings required to extract target allocations and asset metadata | `Settings` |
+
 ## Key Components
 
 | Component                  | File           | Description                                                             |

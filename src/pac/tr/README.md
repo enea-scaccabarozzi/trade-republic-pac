@@ -10,6 +10,14 @@ Read-only WebSocket client for fetching portfolio data from Trade Republic via t
 | Consumed by | [`app.py`](../app.py) (portfolio fetching), [`delivery`](../delivery/) (interactive command handling)        |
 | Boundary    | Edge adapter — translates pytr WebSocket API into typed domain models                                        |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Domain types for the portfolio snapshot built from raw WebSocket data | `PortfolioSnapshot`, `Position`, `SavingsPlan` |
+
 ## Key Components
 
 | Component               | File            | Description                                                              |

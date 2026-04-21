@@ -122,6 +122,9 @@ _MOD = "pac.backtester.runner"
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
 
+_SIM_MOD = "pac.backtester.engine.simulator"
+
+
 class TestRunPipelineHappyPath:
     """Verify the full pipeline returns (RunResult, Path) and calls progress."""
 
@@ -129,7 +132,7 @@ class TestRunPipelineHappyPath:
     @patch(f"{_MOD}.build_run_result")
     @patch(f"{_MOD}.compute_report")
     @patch(f"{_MOD}.SimulationResult")
-    @patch(f"{_MOD}.BacktestSimulator")
+    @patch(f"{_SIM_MOD}.run_iterations_parallel")
     @patch(f"{_MOD}.discover_strategies")
     @patch(f"{_MOD}.discover_rules")
     @patch(f"{_MOD}.MarketDataProvider")
@@ -140,7 +143,7 @@ class TestRunPipelineHappyPath:
         mock_provider_cls: MagicMock,
         mock_disc_rules: MagicMock,
         mock_disc_strats: MagicMock,
-        mock_sim_cls: MagicMock,
+        mock_run_parallel: MagicMock,
         mock_sim_result_cls: MagicMock,
         mock_report: MagicMock,
         mock_build: MagicMock,
@@ -160,10 +163,8 @@ class TestRunPipelineHappyPath:
         strategy_cls = _make_mock_strategy_cls()
         mock_disc_strats.return_value = {"pac_alignment": strategy_cls}
 
-        mock_iteration = MagicMock()
-        mock_sim = MagicMock()
-        mock_sim.run_iteration.return_value = mock_iteration
-        mock_sim_cls.return_value = mock_sim
+        mock_iterations = [MagicMock(), MagicMock(), MagicMock()]
+        mock_run_parallel.return_value = mock_iterations
 
         expected_report = MagicMock()
         mock_report.return_value = expected_report
@@ -190,15 +191,14 @@ class TestRunPipelineHappyPath:
 
         assert result is expected_result
         assert path is expected_path
-        assert progress_calls == [(1, 3), (2, 3), (3, 3)]
-        assert mock_sim.run_iteration.call_count == 3
+        mock_run_parallel.assert_called_once()
         mock_store.save.assert_called_once_with(expected_result)
 
     @patch(f"{_MOD}.ResultStore")
     @patch(f"{_MOD}.build_run_result")
     @patch(f"{_MOD}.compute_report")
     @patch(f"{_MOD}.SimulationResult")
-    @patch(f"{_MOD}.BacktestSimulator")
+    @patch(f"{_SIM_MOD}.run_iterations_parallel")
     @patch(f"{_MOD}.discover_strategies")
     @patch(f"{_MOD}.discover_rules")
     @patch(f"{_MOD}.MarketDataProvider")
@@ -209,7 +209,7 @@ class TestRunPipelineHappyPath:
         mock_provider_cls: MagicMock,
         mock_disc_rules: MagicMock,
         mock_disc_strats: MagicMock,
-        mock_sim_cls: MagicMock,
+        mock_run_parallel: MagicMock,
         mock_sim_result_cls: MagicMock,
         mock_report: MagicMock,
         mock_build: MagicMock,
@@ -228,10 +228,7 @@ class TestRunPipelineHappyPath:
         strategy_cls = _make_mock_strategy_cls()
         mock_disc_strats.return_value = {"pac_alignment": strategy_cls}
 
-        mock_sim = MagicMock()
-        mock_sim.run_iteration.return_value = MagicMock()
-        mock_sim_cls.return_value = mock_sim
-
+        mock_run_parallel.return_value = [MagicMock(), MagicMock()]
         mock_report.return_value = MagicMock()
         mock_build.return_value = MagicMock()
 
@@ -247,7 +244,7 @@ class TestRunPipelineHappyPath:
         )
 
         assert result is not None
-        assert mock_sim.run_iteration.call_count == 2
+        mock_run_parallel.assert_called_once()
 
 
 class TestRunPipelineConfigErrors:
@@ -424,7 +421,7 @@ class TestRunPipelineMetricsErrors:
 
     @patch(f"{_MOD}.compute_report")
     @patch(f"{_MOD}.SimulationResult")
-    @patch(f"{_MOD}.BacktestSimulator")
+    @patch(f"{_SIM_MOD}.run_iterations_parallel")
     @patch(f"{_MOD}.discover_strategies")
     @patch(f"{_MOD}.discover_rules")
     @patch(f"{_MOD}.MarketDataProvider")
@@ -435,7 +432,7 @@ class TestRunPipelineMetricsErrors:
         mock_provider_cls: MagicMock,
         mock_disc_rules: MagicMock,
         mock_disc_strats: MagicMock,
-        mock_sim_cls: MagicMock,
+        mock_run_parallel: MagicMock,
         mock_sim_result_cls: MagicMock,
         mock_report: MagicMock,
     ) -> None:
@@ -450,10 +447,7 @@ class TestRunPipelineMetricsErrors:
         strategy_cls = _make_mock_strategy_cls()
         mock_disc_strats.return_value = {"pac_alignment": strategy_cls}
 
-        mock_sim = MagicMock()
-        mock_sim.run_iteration.return_value = MagicMock()
-        mock_sim_cls.return_value = mock_sim
-
+        mock_run_parallel.return_value = [MagicMock()]
         mock_report.side_effect = RuntimeError("quantstats crash")
 
         config = _make_config(iterations=1)
@@ -471,7 +465,7 @@ class TestRunPipelineAggregationErrors:
     @patch(f"{_MOD}.build_run_result")
     @patch(f"{_MOD}.compute_report")
     @patch(f"{_MOD}.SimulationResult")
-    @patch(f"{_MOD}.BacktestSimulator")
+    @patch(f"{_SIM_MOD}.run_iterations_parallel")
     @patch(f"{_MOD}.discover_strategies")
     @patch(f"{_MOD}.discover_rules")
     @patch(f"{_MOD}.MarketDataProvider")
@@ -482,7 +476,7 @@ class TestRunPipelineAggregationErrors:
         mock_provider_cls: MagicMock,
         mock_disc_rules: MagicMock,
         mock_disc_strats: MagicMock,
-        mock_sim_cls: MagicMock,
+        mock_run_parallel: MagicMock,
         mock_sim_result_cls: MagicMock,
         mock_report: MagicMock,
         mock_build: MagicMock,
@@ -498,10 +492,7 @@ class TestRunPipelineAggregationErrors:
         strategy_cls = _make_mock_strategy_cls()
         mock_disc_strats.return_value = {"pac_alignment": strategy_cls}
 
-        mock_sim = MagicMock()
-        mock_sim.run_iteration.return_value = MagicMock()
-        mock_sim_cls.return_value = mock_sim
-
+        mock_run_parallel.return_value = [MagicMock()]
         mock_report.return_value = MagicMock()
         mock_build.side_effect = ValueError(
             "Cannot build RunResult from empty iterations list",

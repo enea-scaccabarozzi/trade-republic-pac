@@ -79,6 +79,10 @@ class AssetConfig(BaseModel):
             "Currency of primary ticker. If set and not EUR, FX conversion applied."
         ),
     )
+    tax_meta: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Tax-related metadata (e.g. government_bond: true)",
+    )
 
     @model_validator(mode="after")
     def _check_proxy_fields(self) -> AssetConfig:

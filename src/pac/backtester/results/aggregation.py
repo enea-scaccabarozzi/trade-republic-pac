@@ -147,12 +147,10 @@ def _build_equity_curve(
     """
     dates = [dv.date for dv in iterations[0].daily_values]
     n_dates = len(dates)
-    n_iters = len(iterations)
 
-    matrix = np.empty((n_iters, n_dates))
-    for i, it in enumerate(iterations):
-        for j, dv in enumerate(it.daily_values):
-            matrix[i, j] = float(dv.total_value)
+    matrix = np.array(
+        [[float(dv.total_value) for dv in it.daily_values] for it in iterations]
+    )
 
     p5 = np.percentile(matrix, 5, axis=0)
     med = np.percentile(matrix, 50, axis=0)
@@ -177,24 +175,29 @@ def _build_allocations(
     """
     dates = [dv.date for dv in iterations[0].daily_values]
     n_dates = len(dates)
-    n_iters = len(iterations)
 
     asset_ids = list(iterations[0].daily_values[0].allocations.keys())
 
     asset_matrices: dict[str, np.ndarray] = {}
     for aid in asset_ids:
-        m = np.empty((n_iters, n_dates))
-        for i, it in enumerate(iterations):
-            for j, dv in enumerate(it.daily_values):
-                m[i, j] = float(dv.allocations.get(aid, Decimal(0)))
-        asset_matrices[aid] = m
+        asset_matrices[aid] = np.array(
+            [
+                [float(dv.allocations.get(aid, Decimal(0))) for dv in it.daily_values]
+                for it in iterations
+            ]
+        )
 
-    cash_matrix = np.empty((n_iters, n_dates))
-    for i, it in enumerate(iterations):
-        for j, dv in enumerate(it.daily_values):
-            total = float(dv.total_value)
-            cash = float(dv.cash)
-            cash_matrix[i, j] = (cash / total * 100) if total > 0 else 0.0
+    cash_matrix = np.array(
+        [
+            [
+                (float(dv.cash) / float(dv.total_value) * 100)
+                if float(dv.total_value) > 0
+                else 0.0
+                for dv in it.daily_values
+            ]
+            for it in iterations
+        ]
+    )
     asset_matrices["cash"] = cash_matrix
 
     points: list[AllocationPoint] = []
@@ -250,7 +253,13 @@ def _compute_summary(
     pac_trades = [t for t in median_iter.trades if t.type == "pac_execution"]
     pac_count = len(pac_trades)
 
-    contribution_per_pac = config.monthly_contribution / Decimal(
+    effective_contribution: Decimal = (
+        config.monthly_contribution
+        if isinstance(config.monthly_contribution, Decimal)
+        else (config.monthly_contribution.min + config.monthly_contribution.max)
+        / Decimal("2")
+    )
+    contribution_per_pac = effective_contribution / Decimal(
         len(config.pac_execution_days),
     )
     total_invested = (
@@ -259,6 +268,19 @@ def _compute_summary(
             contribution_per_pac,
         )
         * pac_count
+    )
+
+    tax_per_iter = [
+        sum(float(t.tax) for t in it.trades) for it in iterations
+    ]
+    total_tax = (
+        ConfidenceInterval(
+            p5=float(np.percentile(tax_per_iter, 5)),
+            median=float(np.percentile(tax_per_iter, 50)),
+            p95=float(np.percentile(tax_per_iter, 95)),
+        )
+        if any(t > 0 for t in tax_per_iter)
+        else None
     )
 
     return SummaryStats(
@@ -279,6 +301,7 @@ def _compute_summary(
             p95=float(np.percentile(trade_counts, 95)),
         ),
         total_pac_executions=pac_count,
+        total_tax=total_tax,
     )
 
 

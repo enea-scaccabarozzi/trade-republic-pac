@@ -10,6 +10,20 @@ Framework-agnostic signal dispatch pipeline. Wires config, rules, templates, and
 | Consumed by | [`app.py`](../app.py) (HTTP adapter), interactive channel handlers (e.g. Telegram `/rebalance`)                                                                                                                                                                                                        |
 | Boundary    | Signal dispatch coordination, lifecycle management, config-to-component wiring                                                                                                                                                                                                                         |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `analysis` | `pac.analysis` | Deviation calculation and PAC plan computation for signal evaluation | `DeviationReport`, `calculate_deviations`, `compute_pac_plan` |
+| `config` | `pac.config` | Application settings required to wire rules, channels, and templates at startup | `Settings` |
+| `delivery` | `pac.delivery` | Channel abstraction for routing rendered messages to Telegram and other targets | `DeliveryChannel`, `discover_channels` |
+| `models` | `pac.models` | Shared portfolio and signal types passed through the dispatch pipeline | `PortfolioSnapshot`, `Signal` |
+| `rules` | `pac.rules` | Signal rule registry and evaluation — core of the dispatch pipeline | `SignalRegistry`, `discover_rules` |
+| `templates` | `pac.templates` | Jinja2 rendering engine that converts signal data into formatted messages | `TemplateEngine`, `FormatAdapter` |
+| `tr` | `pac.tr` | WebSocket client for fetching live portfolio data on each signal evaluation | `tr_session` |
+
 ## Key Components
 
 | Component                | File              | Description                                                          |

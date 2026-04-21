@@ -13,6 +13,7 @@ import itertools
 import math
 from collections.abc import Callable
 from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -295,12 +296,22 @@ class ResearchContext:
         self,
         strategy: str,
         params: dict[str, Any] | None = None,
+        *,
+        tax_regime: str = "italian",
+        tax_params: dict[str, Any] | None = None,
+        monthly_contribution: Decimal | dict[str, Any] | None = None,
     ) -> IterationResult:
         """Run a quick-test simulation (N=1, deterministic, no slippage).
 
         Args:
             strategy: Strategy name (must be a discovered BacktestStrategy).
             params: Strategy parameters dict (validated against params_model).
+            tax_regime: Tax regime to apply (``"italian"`` or ``"none"``).
+                Defaults to ``"italian"``.
+            tax_params: Regime-specific tax parameters. Defaults to ``{}``.
+            monthly_contribution: Monthly contribution amount or
+                ``ContributionConfig``-compatible dict. When ``None``,
+                the ``BacktestConfig`` default (500 EUR) is used.
 
         Returns:
             Single IterationResult.
@@ -308,14 +319,19 @@ class ResearchContext:
         Raises:
             ValueError: If strategy name is unknown.
         """
-        config = BacktestConfig(
-            strategy=strategy,
-            strategy_params=params or {},
-            start_date=self._data_start,
-            end_date=self._data_end,
-            monte_carlo_iterations=1,
-            slippage_days=(0, 0),
-        )
+        config_kwargs: dict[str, Any] = {
+            "strategy": strategy,
+            "strategy_params": params or {},
+            "start_date": self._data_start,
+            "end_date": self._data_end,
+            "monte_carlo_iterations": 1,
+            "slippage_days": (0, 0),
+            "tax_regime": tax_regime,
+            "tax_params": tax_params or {},
+        }
+        if monthly_contribution is not None:
+            config_kwargs["monthly_contribution"] = monthly_contribution
+        config = BacktestConfig(**config_kwargs)
         strategy_instance = self._resolve_strategy(strategy, params)
         signal_registry = self._signal_registry()
         simulator = BacktestSimulator(
@@ -336,6 +352,9 @@ class ResearchContext:
         iterations: int = 50,
         seed: int | None = None,
         slippage_days: tuple[int, int] = (0, 3),
+        tax_regime: str = "italian",
+        tax_params: dict[str, Any] | None = None,
+        monthly_contribution: Decimal | dict[str, Any] | None = None,
     ) -> SimulationResult:
         """Run a full Monte Carlo simulation.
 
@@ -345,6 +364,12 @@ class ResearchContext:
             iterations: Number of MC iterations.
             seed: RNG seed for reproducibility.
             slippage_days: (min, max) human delay range in days.
+            tax_regime: Tax regime to apply (``"italian"`` or ``"none"``).
+                Defaults to ``"italian"``.
+            tax_params: Regime-specific tax parameters. Defaults to ``{}``.
+            monthly_contribution: Monthly contribution amount or
+                ``ContributionConfig``-compatible dict. When ``None``,
+                the ``BacktestConfig`` default (500 EUR) is used.
 
         Returns:
             SimulationResult with all iterations.
@@ -352,14 +377,19 @@ class ResearchContext:
         Raises:
             ValueError: If strategy name is unknown.
         """
-        config = BacktestConfig(
-            strategy=strategy,
-            strategy_params=params or {},
-            start_date=self._data_start,
-            end_date=self._data_end,
-            monte_carlo_iterations=iterations,
-            slippage_days=slippage_days,
-        )
+        config_kwargs: dict[str, Any] = {
+            "strategy": strategy,
+            "strategy_params": params or {},
+            "start_date": self._data_start,
+            "end_date": self._data_end,
+            "monte_carlo_iterations": iterations,
+            "slippage_days": slippage_days,
+            "tax_regime": tax_regime,
+            "tax_params": tax_params or {},
+        }
+        if monthly_contribution is not None:
+            config_kwargs["monthly_contribution"] = monthly_contribution
+        config = BacktestConfig(**config_kwargs)
         strategy_instance = self._resolve_strategy(strategy, params)
         signal_registry = self._signal_registry()
         simulator = BacktestSimulator(
@@ -414,6 +444,9 @@ class ResearchContext:
         variants: list[dict[str, Any]],
         *,
         metrics: list[str] | None = None,
+        tax_regime: str = "italian",
+        tax_params: dict[str, Any] | None = None,
+        monthly_contribution: Decimal | dict[str, Any] | None = None,
     ) -> ComparisonTable:
         """Compare multiple strategy+params combinations.
 
@@ -429,6 +462,13 @@ class ResearchContext:
             variants: List of variant specifications.
             metrics: Metric names to compute. Defaults to
                 ["sharpe", "cagr", "max_drawdown"].
+            tax_regime: Tax regime forwarded to each simulate() call.
+                Defaults to ``"italian"``.
+            tax_params: Regime-specific tax parameters forwarded to each
+                simulate() call. Defaults to ``{}``.
+            monthly_contribution: Monthly contribution forwarded to each
+                simulate() call. When ``None``, the BacktestConfig default
+                (500 EUR) is used.
 
         Returns:
             ComparisonTable with one VariantResult per variant.
@@ -452,7 +492,13 @@ class ResearchContext:
             )
             # Fail fast on unknown strategy
             self._resolve_strategy(strategy, params)
-            sim = self.simulate(strategy, params)
+            sim = self.simulate(
+                strategy,
+                params,
+                tax_regime=tax_regime,
+                tax_params=tax_params,
+                monthly_contribution=monthly_contribution,
+            )
             m = self.compute_metrics(sim, metric_names)
             variant_results.append(
                 VariantResult(
@@ -475,6 +521,9 @@ class ResearchContext:
         *,
         metrics: list[str] | None = None,
         base_params: dict[str, Any] | None = None,
+        tax_regime: str = "italian",
+        tax_params: dict[str, Any] | None = None,
+        monthly_contribution: Decimal | dict[str, Any] | None = None,
     ) -> SweepResult:
         """Run a parameter grid sweep using quick-test simulation.
 
@@ -488,6 +537,13 @@ class ResearchContext:
             metrics: Metric names to compute. Defaults to
                 ["sharpe", "cagr", "max_drawdown"].
             base_params: Fixed params merged with each grid combination.
+            tax_regime: Tax regime forwarded to each simulate() call.
+                Defaults to ``"italian"``.
+            tax_params: Regime-specific tax parameters forwarded to each
+                simulate() call. Defaults to ``{}``.
+            monthly_contribution: Monthly contribution forwarded to each
+                simulate() call. When ``None``, the BacktestConfig default
+                (500 EUR) is used.
 
         Returns:
             SweepResult with one VariantResult per grid point.
@@ -508,7 +564,13 @@ class ResearchContext:
             combo_dict = dict(zip(keys, combo, strict=True))
             merged = {**(base_params or {}), **combo_dict}
             label = self._auto_label(strategy, merged)
-            sim = self.simulate(strategy, merged)
+            sim = self.simulate(
+                strategy,
+                merged,
+                tax_regime=tax_regime,
+                tax_params=tax_params,
+                monthly_contribution=monthly_contribution,
+            )
             m = self.compute_metrics(sim, metric_names)
             variant_results.append(
                 VariantResult(

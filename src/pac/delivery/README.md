@@ -6,9 +6,19 @@ Channel abstraction and message routing. Defines the `DeliveryChannel` base clas
 
 | Aspect      | Details                                                                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | [`models`](../models/) (`SignalSeverity`), [`analysis`](../analysis/) (Telegram formatting), [`tr`](../tr/) (Telegram error handling) |
+| Depends on  | [`models`](../models/) (`SignalSeverity`, `PortfolioSnapshot`), [`analysis`](../analysis/) (deviation and PAC plan data), [`tr`](../tr/) (Telegram error handling) |
 | Consumed by | [`orchestrator`](../orchestrator/) (wires channels, calls `send()`), [`templates`](../templates/) (produces `RenderedMessage`)        |
 | Boundary    | Channel abstraction, message delivery, channel-specific interactive features                                                          |
+
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `models` | `pac.models` | Signal severity and portfolio data used by core `DeliveryChannel` and Telegram formatting | `SignalSeverity`, `PortfolioSnapshot` |
+| `analysis` | `pac.analysis` | Deviation and PAC plan data formatted and displayed by Telegram channel | `DeviationReport`, `PacPlan` |
+| `tr` | `pac.tr` | Exception handling for Trade Republic API errors in Telegram error responses | `TRClientError`, `TRConnectionError`, etc. |
 
 ## Key Components
 

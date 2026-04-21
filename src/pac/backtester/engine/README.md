@@ -10,6 +10,19 @@ Simulation engine for the backtester. Provides a time-stepping event loop that r
 | Consumed by | Backtester strategies (Phase 3), CLI interface (Phase 6)                                                                                                                                                                   |
 | Boundary    | Pure computation — no I/O, no network calls, deterministic with seed                                                                                                                                                       |
 
+## Dependencies
+
+> Exported items listed below are representative — other exports from each module may also be imported.
+
+| Module | Import Path | Why Required | Representative Exports |
+|---|---|---|---|
+| `analysis` | `pac.analysis` | Deviation computation reused on every simulation tick to match production logic | `DeviationReport`, `calculate_deviations` |
+| `backtester/data` | `pac.backtester.data` | Price series consumed by the simulation clock and portfolio state machine | `PriceSeries`, `PriceBar` |
+| `backtester/results` | `pac.backtester.results` | Result models populated as the simulation progresses | `IterationResult`, `SimulationResult` |
+| `backtester/strategies` | `pac.backtester.strategies` | Strategy interface for translating signals into actions each tick | `BacktestStrategy` |
+| `config` | `pac.config` | Simulation parameters (dates, contributions, spread) from `BacktestConfig` | `Settings` |
+| `rules` | `pac.rules` | Existing production signal rules evaluated on each synthetic snapshot | `SignalRegistry` |
+
 ## Key Components
 
 | Component            | File           | Description                                                                                    |
