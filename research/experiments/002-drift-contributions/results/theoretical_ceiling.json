@@ -1,0 +1,36 @@
+{
+  "period": "2005-01-03 to 2026-04-22",
+  "baseline": {
+    "final_value": "472718.10",
+    "metrics": {
+      "twrr": 0.083287,
+      "mwrr": 0.096969,
+      "sharpe": 0.767252,
+      "sortino": 1.373224,
+      "max_drawdown": -0.438218,
+      "calmar": 0.853706,
+      "volatility": 0.912537
+    }
+  },
+  "oracle": {
+    "final_value": "449248.10",
+    "metrics": {
+      "twrr": 0.086834,
+      "mwrr": 0.096155,
+      "sharpe": 0.773041,
+      "sortino": 1.391536,
+      "max_drawdown": -0.567418,
+      "calmar": 0.653598,
+      "volatility": 1.015531
+    }
+  },
+  "delta": {
+    "calmar": -0.200108,
+    "volatility": 0.102994,
+    "mwrr": -0.000814,
+    "sortino": 0.018313,
+    "max_drawdown": -0.1292,
+    "twrr": 0.003546,
+    "sharpe": 0.00579
+  }
+}

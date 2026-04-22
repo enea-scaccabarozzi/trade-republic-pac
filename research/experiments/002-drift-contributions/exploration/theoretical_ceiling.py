@@ -107,7 +107,7 @@ class OracleContributionStrategy(BacktestStrategy[OracleContributionParams]):
 
         # Compute shortfalls: how much each asset is below its target (pp)
         shortfalls: dict[str, Decimal] = {}
-        for asset_id, alloc in report.per_asset.items():
+        for asset_id, alloc in report.deviations.items():
             shortfall = alloc.target_pct - alloc.actual_pct
             if shortfall > Decimal("0"):
                 shortfalls[asset_id] = shortfall

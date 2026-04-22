@@ -1,0 +1,148 @@
+{
+  "windows": [
+    5,
+    10,
+    20,
+    40
+  ],
+  "analysis": {
+    "stocks": {
+      "spot": {
+        "variance_ratio": 1.0,
+        "lag_days": 0.0
+      },
+      "sma_5": {
+        "variance_ratio": 0.8769,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 12.31
+      },
+      "ema_5": {
+        "variance_ratio": 0.8771,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 12.29
+      },
+      "sma_10": {
+        "variance_ratio": 0.8622,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.78
+      },
+      "ema_10": {
+        "variance_ratio": 0.8615,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.85
+      },
+      "sma_20": {
+        "variance_ratio": 0.8545,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 14.55
+      },
+      "ema_20": {
+        "variance_ratio": 0.8533,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 14.67
+      },
+      "sma_40": {
+        "variance_ratio": 0.8511,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 14.89
+      },
+      "ema_40": {
+        "variance_ratio": 0.8477,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 15.23
+      }
+    },
+    "gold": {
+      "spot": {
+        "variance_ratio": 1.0,
+        "lag_days": 0.0
+      },
+      "sma_5": {
+        "variance_ratio": 0.8819,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 11.81
+      },
+      "ema_5": {
+        "variance_ratio": 0.8813,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 11.87
+      },
+      "sma_10": {
+        "variance_ratio": 0.8692,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.08
+      },
+      "ema_10": {
+        "variance_ratio": 0.8677,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.23
+      },
+      "sma_20": {
+        "variance_ratio": 0.866,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.4
+      },
+      "ema_20": {
+        "variance_ratio": 0.863,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.7
+      },
+      "sma_40": {
+        "variance_ratio": 0.8698,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.02
+      },
+      "ema_40": {
+        "variance_ratio": 0.864,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 13.6
+      }
+    },
+    "bonds": {
+      "spot": {
+        "variance_ratio": 1.0,
+        "lag_days": 0.0
+      },
+      "sma_5": {
+        "variance_ratio": 0.7672,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 23.28
+      },
+      "ema_5": {
+        "variance_ratio": 0.7663,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 23.37
+      },
+      "sma_10": {
+        "variance_ratio": 0.7398,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 26.02
+      },
+      "ema_10": {
+        "variance_ratio": 0.739,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 26.1
+      },
+      "sma_20": {
+        "variance_ratio": 0.7317,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 26.83
+      },
+      "ema_20": {
+        "variance_ratio": 0.729,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 27.1
+      },
+      "sma_40": {
+        "variance_ratio": 0.7352,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 26.48
+      },
+      "ema_40": {
+        "variance_ratio": 0.729,
+        "lag_days": 0.0,
+        "noise_reduction_pct": 27.1
+      }
+    }
+  }
+}

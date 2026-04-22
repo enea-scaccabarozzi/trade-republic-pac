@@ -1,0 +1,143 @@
+{
+  "mean_contribution_eur": 600.0,
+  "crossovers": {
+    "below_5.0pp": "2006-08-16",
+    "below_2.0pp": "2009-08-07",
+    "below_1.0pp": "2011-12-23",
+    "below_0.5pp": "2015-02-23"
+  },
+  "by_year": {
+    "2005": {
+      "mean_contribution_ratio": 0.2953266545171445,
+      "mean_max_drift_correction_pp": 29.532665451714454,
+      "portfolio_value_start": 505.02,
+      "portfolio_value_end": 7661.0
+    },
+    "2006": {
+      "mean_contribution_ratio": 0.05500632700941792,
+      "mean_max_drift_correction_pp": 5.500632700941793,
+      "portfolio_value_start": 5730.81,
+      "portfolio_value_end": 15327.29
+    },
+    "2007": {
+      "mean_contribution_ratio": 0.031525919320122234,
+      "mean_max_drift_correction_pp": 3.152591932012223,
+      "portfolio_value_start": 11355.77,
+      "portfolio_value_end": 22675.74
+    },
+    "2008": {
+      "mean_contribution_ratio": 0.026133738669639365,
+      "mean_max_drift_correction_pp": 2.613373866963937,
+      "portfolio_value_start": 22540.48,
+      "portfolio_value_end": 23347.61
+    },
+    "2009": {
+      "mean_contribution_ratio": 0.02110591489715257,
+      "mean_max_drift_correction_pp": 2.110591489715257,
+      "portfolio_value_start": 23775.86,
+      "portfolio_value_end": 36144.1
+    },
+    "2010": {
+      "mean_contribution_ratio": 0.013915971843582259,
+      "mean_max_drift_correction_pp": 1.3915971843582258,
+      "portfolio_value_start": 36453.99,
+      "portfolio_value_end": 52200.16
+    },
+    "2011": {
+      "mean_contribution_ratio": 0.011170306754407226,
+      "mean_max_drift_correction_pp": 1.1170306754407227,
+      "portfolio_value_start": 52385.17,
+      "portfolio_value_end": 60116.51
+    },
+    "2012": {
+      "mean_contribution_ratio": 0.008838604493801413,
+      "mean_max_drift_correction_pp": 0.8838604493801413,
+      "portfolio_value_start": 38275.26,
+      "portfolio_value_end": 73268.95
+    },
+    "2013": {
+      "mean_contribution_ratio": 0.0075388797419954036,
+      "mean_max_drift_correction_pp": 0.7538879741995403,
+      "portfolio_value_start": 75265.77,
+      "portfolio_value_end": 85761.5
+    },
+    "2014": {
+      "mean_contribution_ratio": 0.006320065041840897,
+      "mean_max_drift_correction_pp": 0.6320065041840895,
+      "portfolio_value_start": 86271.35,
+      "portfolio_value_end": 109208.17
+    },
+    "2015": {
+      "mean_contribution_ratio": 0.004919712751442555,
+      "mean_max_drift_correction_pp": 0.4919712751442554,
+      "portfolio_value_start": 108831.67,
+      "portfolio_value_end": 125306.96
+    },
+    "2016": {
+      "mean_contribution_ratio": 0.004684538112297634,
+      "mean_max_drift_correction_pp": 0.4684538112297634,
+      "portfolio_value_start": 123315.31,
+      "portfolio_value_end": 142707.28
+    },
+    "2017": {
+      "mean_contribution_ratio": 0.004006904101442155,
+      "mean_max_drift_correction_pp": 0.40069041014421564,
+      "portfolio_value_start": 111589.01,
+      "portfolio_value_end": 158276.66
+    },
+    "2018": {
+      "mean_contribution_ratio": 0.0036702507709416516,
+      "mean_max_drift_correction_pp": 0.3670250770941652,
+      "portfolio_value_start": 158293.44,
+      "portfolio_value_end": 159968.04
+    },
+    "2019": {
+      "mean_contribution_ratio": 0.0032059384605737256,
+      "mean_max_drift_correction_pp": 0.32059384605737257,
+      "portfolio_value_start": 160396.66,
+      "portfolio_value_end": 212839.4
+    },
+    "2020": {
+      "mean_contribution_ratio": 0.0028553869309818373,
+      "mean_max_drift_correction_pp": 0.2855386930981837,
+      "portfolio_value_start": 213412.44,
+      "portfolio_value_end": 233162.0
+    },
+    "2021": {
+      "mean_contribution_ratio": 0.0022819793521889594,
+      "mean_max_drift_correction_pp": 0.22819793521889595,
+      "portfolio_value_start": 233442.65,
+      "portfolio_value_end": 295135.62
+    },
+    "2022": {
+      "mean_contribution_ratio": 0.0021677735785984057,
+      "mean_max_drift_correction_pp": 0.2167773578598406,
+      "portfolio_value_start": 265735.26,
+      "portfolio_value_end": 266794.14
+    },
+    "2023": {
+      "mean_contribution_ratio": 0.0020637661875516993,
+      "mean_max_drift_correction_pp": 0.20637661875516997,
+      "portfolio_value_start": 216837.57,
+      "portfolio_value_end": 317702.39
+    },
+    "2024": {
+      "mean_contribution_ratio": 0.001670685973405722,
+      "mean_max_drift_correction_pp": 0.16706859734057222,
+      "portfolio_value_start": 317722.18,
+      "portfolio_value_end": 401240.12
+    },
+    "2025": {
+      "mean_contribution_ratio": 0.0014411261799492298,
+      "mean_max_drift_correction_pp": 0.144112617994923,
+      "portfolio_value_start": 407699.41,
+      "portfolio_value_end": 465800.87
+    },
+    "2026": {
+      "mean_contribution_ratio": 0.0012546883661692706,
+      "mean_max_drift_correction_pp": 0.12546883661692707,
+      "portfolio_value_start": 464771.91,
+      "portfolio_value_end": 472718.1
+    }
+  }
+}
