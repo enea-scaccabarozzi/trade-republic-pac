@@ -1,0 +1,8 @@
+[experiment]
+created = 2026-04-22
+id = "002"
+slug = "drift-contributions"
+title = "Drift-Based Contribution Steering"
+hypothesis = "Dynamically redistributing fixed monthly DCA contributions toward underweight assets based on portfolio allocation drift improves risk-adjusted returns compared to static 70/15/15 allocation, without selling or incurring fees."
+tags = ["drift", "rebalancing", "passive", "contribution-steering"]
+depends_on = ["001-baseline-dca"]

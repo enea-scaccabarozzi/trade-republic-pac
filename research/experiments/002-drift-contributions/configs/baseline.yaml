@@ -1,0 +1,89 @@
+# baseline.yaml — ~21-year DCA backtest config with validated proxy chains
+#
+# Proxy chain quality (monthly return correlation):
+#   Stocks: ^990100-USD-STRD→IWDA.AS (0.70 cross-ccy) → VWCE.DE (0.99)
+#   Gold:   GLD→SGLN.L (0.91 cross-ccy)
+#   Bonds:  VBMFX→AGG (0.98 same-ccy)
+#
+# Start date: 2005-01-01 (limited by GLD inception 2004-11-18 and EURUSD=X from 2003-12)
+# GC=F rejected: corrupt bar (low > high) on 2009-11-23.
+# Known limitation: ^990100-USD-STRD is price-return only (no dividends),
+# understating equity returns by ~2%/year during 2005-2009.
+
+version: 1
+
+app:
+  log_level: INFO
+  dev_mode: true
+  port: 8080
+  job_secret: "backtest-only"
+
+broker:
+  type: trade_republic
+  phone_number: "+0000000000"
+  pin: "0000"
+
+assets:
+  - id: stocks
+    name: Stocks (FTSE All-World EUR)
+    isin: IE00BK5BQT80
+    ticker: "VWCE.DE"
+    currency: "EUR"
+    target_pct: 70
+    proxy_chain:
+      - ticker: "^990100-USD-STRD"
+        end: "2009-09-24"
+        currency: "USD"
+      - ticker: "IWDA.AS"
+        end: "2019-07-28"
+        currency: "EUR"
+
+  - id: gold
+    name: Gold ETC (GBP)
+    isin: IE00B4ND3602
+    ticker: "SGLN.L"
+    currency: "GBP"
+    target_pct: 15
+    proxy_chain:
+      - ticker: "GLD"
+        end: "2011-04-07"
+        currency: "USD"
+
+  - id: bonds
+    name: Bond ETF (US Aggregate)
+    isin: IE00B3F81409
+    ticker: "AGG"
+    currency: "USD"
+    target_pct: 15
+    proxy_chain:
+      - ticker: "VBMFX"
+        end: "2003-09-28"
+        currency: "USD"
+
+channels: {}
+
+signals:
+  - name: crisis_composite
+    rule: crisis_composite
+    schedule: daily
+    channels: []
+    template: crisis_alert
+    params:
+      equity_asset_id: stocks
+      gold_asset_id: gold
+      min_active_indicators: 3
+      drawdown_warning_pct: -12.0
+      drawdown_critical_pct: -20.0
+      velocity_warning: -0.25
+      velocity_critical: -0.50
+      divergence_warning_pct: 12.0
+      divergence_critical_pct: 20.0
+      rs_ma_window: 120
+      rs_warning_pct: 8.0
+      rs_critical_pct: 15.0
+      death_cross_short_window: 50
+      death_cross_long_window: 200
+      equity_lookback_days: 450
+      gold_lookback_days: 250
+      drawdown_lookback_bars: 252
+      divergence_lookback_bars: 40
