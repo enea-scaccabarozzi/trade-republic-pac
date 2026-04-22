@@ -23,17 +23,10 @@ from strategies.baseline_dca import BaselineDCA, BaselineDCAParams  # noqa: E402
 
 from pac.backtester.config import BacktestConfig
 from pac.backtester.engine.simulator import BacktestSimulator
+from pac.backtester.metrics.twrr import compute_mwrr, compute_twrr
 from pac.backtester.research.context import ResearchContext
-from pac.backtester.strategies.discovery import discover_strategies
 from pac.rules.discovery import discover_rules
 from pac.rules.registry import SignalRegistry
-
-
-def register_strategy(ctx: ResearchContext) -> None:
-    """Inject the experiment-local BaselineDCA into the context's strategy registry."""
-    if ctx._strategies is None:
-        ctx._strategies = discover_strategies()
-    ctx._strategies["baseline_dca"] = BaselineDCA
 
 
 def build_signal_registry(ctx: ResearchContext) -> SignalRegistry:
@@ -52,9 +45,9 @@ def run_quick_test(ctx: ResearchContext) -> None:
     config = BacktestConfig(
         strategy="baseline_dca",
         strategy_params={},
-        start_date=ctx._data_start,
-        end_date=ctx._data_end,
-        initial_cash=Decimal("10000"),
+        start_date=ctx.data_start,
+        end_date=ctx.data_end,
+        initial_cash=Decimal("0"),
         monthly_contribution={"min": Decimal("500"), "max": Decimal("700"), "distribution": "uniform"},
         pac_execution_days=[16],
         settlement_fee=Decimal("1.00"),
@@ -70,14 +63,14 @@ def run_quick_test(ctx: ResearchContext) -> None:
     simulator = BacktestSimulator(
         config=config,
         settings=ctx.settings,
-        price_data=ctx._ticker_price_data,
+        price_data=ctx.ticker_prices,
         signal_registry=signal_registry,
         strategy=strategy,
         rng_seed=42,
     )
 
-    print(f"Simulation period: {ctx._data_start} to {ctx._data_end}")
-    print(f"Config: PAC on 16th, contribution U(500,700), initial_cash=10000")
+    print(f"Simulation period: {ctx.data_start} to {ctx.data_end}")
+    print(f"Config: PAC on 16th, contribution U(500,700), initial_cash=0")
     print(f"Running quick-test (N=1, zero slippage)...")
 
     result = simulator.run_iteration(0)
@@ -125,11 +118,17 @@ def run_quick_test(ctx: ResearchContext) -> None:
     for name, value in sorted(metrics.items()):
         print(f"    {name:<15} {value:>10.4f}")
 
+    twrr = compute_twrr(result)
+    mwrr = compute_mwrr(result, initial_cash=Decimal("0"))
+    print(f"\n  Return metrics (contribution-adjusted):")
+    print(f"    {'TWRR (annualized)':<20} {twrr:>10.4f}")
+    print(f"    {'MWRR (annualized)':<20} {mwrr:>10.4f}")
+
     # Save quick-test results
     output = EXPERIMENT_DIR / "results" / "quick_test.json"
     output.parent.mkdir(exist_ok=True)
     summary = {
-        "period": f"{ctx._data_start} to {ctx._data_end}",
+        "period": f"{ctx.data_start} to {ctx.data_end}",
         "trading_days": trading_days,
         "total_trades": num_trades,
         "total_invested": str(total_invested),
@@ -138,6 +137,8 @@ def run_quick_test(ctx: ResearchContext) -> None:
         "final_value": str(final_value),
         "gain_pct": round(float(gain_pct), 2),
         "metrics": {k: round(v, 4) for k, v in metrics.items()},
+        "twrr": round(twrr, 4),
+        "mwrr": round(mwrr, 4),
     }
     output.write_text(json.dumps(summary, indent=2))
     print(f"\n  Results saved to {output}")
@@ -154,9 +155,9 @@ def main():
         end_date=date(2026, 4, 22),
         packs=["crisis"],
     )
-    register_strategy(ctx)
+    ctx.register_strategy("baseline_dca", BaselineDCA)
 
-    print(f"\nData range: {ctx._data_start} to {ctx._data_end}")
+    print(f"\nData range: {ctx.data_start} to {ctx.data_end}")
     for asset_id, series in ctx.prices.items():
         print(f"  {asset_id}: {series.start_date} to {series.end_date} ({len(series.bars)} bars)")
 

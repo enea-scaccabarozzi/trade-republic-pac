@@ -26,7 +26,7 @@ class TestScaffoldExperimentCreatesFiles:
 
         assert len(created) == 2
         toml_file = tmp_path / "research/experiments/001-my-test-idea/experiment.toml"
-        explore_file = tmp_path / "research/experiments/001-my-test-idea/explore.py"
+        explore_file = tmp_path / "research/experiments/001-my-test-idea/exploration/explore.py"
         assert toml_file.exists()
         assert explore_file.exists()
 
@@ -74,7 +74,7 @@ class TestScaffoldExperimentStructure:
         _setup_template(tmp_path)
         scaffold_experiment("valid_idea", output_dir=tmp_path)
 
-        explore_file = tmp_path / "research/experiments/001-valid-idea/explore.py"
+        explore_file = tmp_path / "research/experiments/001-valid-idea/exploration/explore.py"
         ast.parse(explore_file.read_text(encoding="utf-8"))
 
     def test_generated_notebook_mentions_title(self, tmp_path: Path) -> None:
@@ -85,7 +85,7 @@ class TestScaffoldExperimentStructure:
             "my_experiment", title="My Cool Experiment", output_dir=tmp_path
         )
 
-        explore_file = tmp_path / "research/experiments/001-my-experiment/explore.py"
+        explore_file = tmp_path / "research/experiments/001-my-experiment/exploration/explore.py"
         content = explore_file.read_text(encoding="utf-8")
         assert "My Cool Experiment" in content
 

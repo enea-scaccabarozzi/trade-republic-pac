@@ -29,6 +29,8 @@ Performance metrics framework for the backtester. Computes per-iteration risk/re
 | `compute_report()`    | `report.py`     | Top-level orchestrator: strategy metrics → benchmark run → benchmark metrics → report       |
 | `run_benchmark()`     | `benchmark.py`  | Runs a passive buy-and-hold simulation (PAC-only, no signals, no strategy actions)          |
 | `equity_to_returns()` | `returns.py`    | Converts an iteration's equity curve to a daily return series for quantstats                |
+| `compute_twrr()`      | `twrr.py`       | Annualized Time-Weighted Rate of Return — strips out contribution timing effects            |
+| `compute_mwrr()`      | `twrr.py`       | Annualized Money-Weighted Rate of Return (IRR) — reflects actual investor experience        |
 
 ## Supported Metrics
 
@@ -42,6 +44,8 @@ All metrics are computed via quantstats with annualized defaults (252 trading da
 | `max_drawdown` | Maximum peak-to-trough drawdown                |
 | `cagr`         | Compound annual growth rate                    |
 | `volatility`   | Annualized volatility (standard deviation)     |
+| `twrr`         | Time-Weighted Rate of Return (annualized)      |
+| `mwrr`         | Money-Weighted Rate of Return / IRR (annualized) |
 
 Metrics are selected via `BacktestConfig.metrics` — only requested metrics are computed.
 
@@ -95,4 +99,5 @@ just test -k test_calculator    # MetricsCalculator unit tests
 just test -k test_benchmark     # Benchmark simulation tests
 just test -k test_report        # Report orchestration tests
 just test -k test_returns       # Equity-to-returns conversion tests
+just test -k test_twrr          # TWRR and MWRR tests
 ```

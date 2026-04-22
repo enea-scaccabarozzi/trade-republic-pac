@@ -199,18 +199,18 @@ With validated proxy chains established, consolidation translated the DCA hypoth
 **Configuration details**:
 - PAC execution: 16th of each month only (`pac_execution_days=[16]`)
 - Contributions: uniform distribution EUR 500-700 per month (sampled once per PAC date)
-- Initial cash: EUR 10,000 (non-zero to avoid metrics distortion — see failing path below)
+- Initial cash: EUR 0 (portfolio grows purely through contributions — no seed capital)
 - Tax regime: Italian (26% capital gains tax on realized gains)
 - Settlement fee: EUR 1.00 per hard rebalance trade (not triggered by pure DCA)
 - Spread: 10 bps
 
-### Failing Path: Initial Cash = 0
+### Design Decision: Initial Cash = 0
 
-**What was attempted**: First consolidation run used `initial_cash=0`, reasoning that a DCA strategy starts from nothing and builds up through contributions.
+**WHY**: A DCA strategy should grow purely through regular contributions. Any seed capital (e.g., EUR 10,000) would sit uninvested as cash drag between PAC dates and distort cash-related metrics. The portfolio's value comes entirely from accumulated contributions and market returns on those contributions.
 
-**What went wrong**: The equity curve starting at zero produced wildly distorted metrics: max drawdown of -100% (initial zero → any positive value → any dip reads as total drawdown), and CAGR of 37.4% (inflated because the denominator starts at zero). The metrics were mathematically correct but operationally meaningless.
+**HOW**: `equity_to_returns()` in the metrics layer was updated to skip leading zeros in the equity curve — the days between the simulation start and the first PAC contribution produce zero portfolio value, which are excluded before computing `pct_change()`. This prevents division-by-zero artifacts without requiring artificial seed money.
 
-**What it taught us**: Time-weighted metrics like CAGR and max drawdown require a non-zero starting value to be meaningful for DCA strategies. Setting `initial_cash=10000` provides a realistic starting point (the investor has some capital before starting their PAC plan) and produces metrics that can be compared across strategies.
+**SO WHAT**: This is the correct modeling of how a real Trade Republic savings plan works — the investor starts from scratch and builds up through automated monthly purchases. No capital sits idle.
 
 ### Quick-Test Results (N=1, deterministic)
 
@@ -220,16 +220,20 @@ With validated proxy chains established, consolidation translated the DCA hypoth
 | -------------- | --------------------------------------------- |
 | Period         | 2005-01-03 to 2026-04-22 (5,436 trading days) |
 | Total trades   | 747                                           |
-| Total invested | EUR 151,710                                   |
+| Total invested | EUR 151,419                                   |
 | Total fees     | EUR 0 (pure DCA, no hard rebalances)          |
 | Total tax      | EUR 0 (no sells = no taxable events)          |
-| Final value    | EUR 483,009                                   |
-| Gain           | +218.4%                                       |
-| Sharpe         | 0.59                                          |
-| CAGR           | 19.7%                                         |
-| Max drawdown   | -36.7%                                        |
+| Final value    | EUR 472,718                                   |
+| Gain           | +212.2%                                       |
+| Sharpe         | 0.77                                          |
+| CAGR           | 37.4%                                         |
+| Max drawdown   | -43.8%                                        |
+| TWRR           | 8.33% annualized                              |
+| MWRR           | 9.70% annualized                              |
 
-**Interpretation**: Zero fees and zero tax are correct — a pure DCA strategy never sells, so there are no settlement fees (which only apply to hard rebalance trades) and no realized capital gains for Italian tax purposes. The 747 trades correspond to ~249 PAC execution dates × 3 assets per date. The 19.7% CAGR is inflated by the DCA effect (regular contributions into a growing portfolio), which is expected and consistent across all future DCA-based experiments.
+**Interpretation**: Zero fees and zero tax are correct — a pure DCA strategy never sells, so there are no settlement fees (which only apply to hard rebalance trades) and no realized capital gains for Italian tax purposes. The 747 trades correspond to ~249 PAC execution dates × 3 assets per date. TWRR (8.33%) represents the contribution-adjusted annualized investment return — the "pure" performance of the strategy independent of cash inflows. MWRR (9.70%) is the actual investor IRR reflecting contribution timing.
+
+**Important caveat on equity-curve metrics**: Sharpe, CAGR, and max drawdown are computed from daily returns of the total portfolio value, which **includes contributions**. This means CAGR is inflated by the DCA effect (regular cash inflows into a growing portfolio) and is not comparable to standard investment CAGR. To address this, TWRR (Time-Weighted Rate of Return) and MWRR (Money-Weighted Rate of Return) have been added — these strip out or properly account for contribution effects respectively. Future experiments should use TWRR for comparing investment quality across strategies with different cash flow profiles.
 
 ### Phase Deliverables
 
@@ -243,41 +247,43 @@ With validated proxy chains established, consolidation translated the DCA hypoth
 
 ## Validation
 
-Full stress-testing of the baseline strategy across multiple dimensions: Monte Carlo slippage variation, out-of-sample holdout, walk-forward analysis, event-based crisis performance, and QuantStats tearsheet generation.
+Full stress-testing of the baseline strategy across multiple dimensions: Monte Carlo contribution variation, out-of-sample holdout, walk-forward analysis, event-based crisis performance, and QuantStats tearsheet generation.
 
 ### Scripts Used
 
 1. [validate.py](validation/validate.py) — runs all five validation steps sequentially, saves results to `results/validation.json` and artifacts to `artifacts/`
 
-### 1. Monte Carlo (N=50, slippage 0-3 days)
+### 1. Monte Carlo (N=50, contribution variation)
 
-**WHY**: Execution slippage is the primary source of randomness in a DCA strategy. When the 16th falls on a weekend or the order takes 1-3 days to fill, the entry price differs. Monte Carlo with 50 iterations and uniform slippage of 0-3 days quantifies how much this matters.
+**WHY**: The primary source of randomness in this DCA strategy is the monthly contribution amount, sampled uniformly from EUR 500-700. Monte Carlo with 50 iterations quantifies how much this variation affects long-term outcomes. Note: slippage (`slippage_days`) in the backtester only applies to hard rebalance actions, **not** to PAC execution — since the baseline never triggers hard rebalances, slippage is set to `(0, 0)`.
 
-**HOW**: [validate.py](validation/validate.py) `validate_mc()` builds 50 iterations of `BacktestSimulator`, each with the same `rng_seed=42` base but different slippage draws. Each iteration runs the full 21.3-year period. Key metrics are computed per iteration and aggregated into P5/median/P95 bands.
+**HOW**: [validate.py](validation/validate.py) `validate_mc()` builds 50 iterations of `BacktestSimulator`, each with `rng_seed=42` but different contribution draws from the uniform(500, 700) distribution. Each iteration runs the full 21.3-year period. Key metrics (including TWRR and MWRR) are computed per iteration and aggregated into P5/median/P95 bands.
 
 | Metric            | P5      | Median  | P95     |
 | ----------------- | ------- | ------- | ------- |
-| Final value (EUR) | 481,060 | 482,401 | 483,725 |
-| Sharpe            | 0.5934  | 0.5938  | 0.5943  |
-| CAGR              | 0.1967  | 0.1969  | 0.1970  |
-| Max drawdown      | -0.3726 | -0.3665 | -0.3623 |
-| Sortino           | 0.9666  | 0.9696  | 0.9727  |
-| Calmar            | 0.5282  | 0.5371  | 0.5437  |
+| Final value (EUR) | 470,770 | 472,175 | 473,725 |
+| Sharpe            | 0.7552  | 0.7593  | 0.7661  |
+| CAGR              | 0.3550  | 0.3613  | 0.3740  |
+| Max drawdown      | -0.4475 | -0.4431 | -0.4369 |
+| Sortino           | 1.3402  | 1.3563  | 1.3853  |
+| Calmar            | 0.8018  | 0.8188  | 0.8470  |
+| TWRR              | 0.0824  | 0.0858  | 0.0919  |
+| MWRR              | 0.0965  | 0.0967  | 0.0970  |
 
-**SO WHAT**: The P5-P95 bands are extremely tight — final value varies by only EUR 2,665 (~0.6%) across 50 iterations. This confirms the baseline is essentially deterministic: execution slippage of 0-3 days has near-zero impact on a monthly DCA strategy. This is the expected behavior — if a strategy IS sensitive to slippage, it indicates fragile entry timing that may not hold in production.
+**SO WHAT**: The P5-P95 bands are extremely tight — final value varies by only EUR 2,955 (~0.6%) across 50 iterations. The baseline is essentially deterministic: contribution variation within the EUR 500-700 range has near-zero impact on long-term outcomes. TWRR median of 8.58% and MWRR median of 9.67% provide the contribution-adjusted return baselines for fair cross-strategy comparison. The MWRR band is particularly narrow (P5=9.65%, P95=9.70%) confirming that contribution timing variation has minimal impact on actual investor returns.
 
 ### 2. Out-of-Sample Holdout (70/30 split)
 
 **WHY**: OOS testing checks whether in-sample performance generalizes. For a static DCA with no parameters, overfitting is impossible by construction — but the test still validates that the strategy's performance isn't an artifact of a single favorable market regime.
 
-**HOW**: [validate.py](validation/validate.py) `validate_oos()` splits the data at the 70% mark chronologically (2019-12-01), runs independent simulations on each half with `initial_cash=10000` and the same contribution schedule, and computes the degradation ratio (OOS Sharpe / IS Sharpe).
+**HOW**: [validate.py](validation/validate.py) `validate_oos()` splits the data at the 70% mark chronologically (2019-12-01), runs independent simulations on each half with `initial_cash=0` and the same contribution schedule, and computes the degradation ratio (OOS Sharpe / IS Sharpe). TWRR is also computed per split to provide a contribution-adjusted comparison.
 
-| Period                    | Sharpe | CAGR   | Max DD  |
-| ------------------------- | ------ | ------ | ------- |
-| In-sample (2005-2019)     | 0.6324 | 0.2260 | -0.3668 |
-| Out-of-sample (2020-2026) | 0.8967 | 0.3769 | -0.2592 |
+| Period                    | Sharpe | CAGR   | Max DD  | TWRR   |
+| ------------------------- | ------ | ------ | ------- | ------ |
+| In-sample (2005-2019)     | 0.8560 | 0.4902 | -0.4382 | 0.0722 |
+| Out-of-sample (2020-2026) | 1.2349 | 1.1538 | -0.3028 | 0.1236 |
 
-**Degradation ratio: 1.42** (>1 means OOS outperforms IS). The OOS period includes the COVID crash and subsequent strong recovery, plus a sustained bull market through 2024-2025. The higher OOS Sharpe is not evidence of a good strategy — it's evidence of a favorable market regime. The important takeaway: a static DCA has no overfitting risk because it has no parameters.
+**Degradation ratio: 1.44** (>1 means OOS outperforms IS). The OOS period includes the COVID crash and subsequent strong recovery, plus a sustained bull market through 2024-2025. The higher OOS Sharpe is not evidence of a good strategy — it's evidence of a favorable market regime. TWRR confirms the pattern: 7.22% annualized IS vs 12.36% OOS, reflecting the stronger recent markets. The important takeaway: a static DCA has no overfitting risk because it has no parameters.
 
 ### 3. Walk-Forward (10yr IS, 5yr step)
 
@@ -287,13 +293,13 @@ Full stress-testing of the baseline strategy across multiple dimensions: Monte C
 
 | Window                | IS Sharpe | OOS Sharpe |
 | --------------------- | --------- | ---------- |
-| 2005-2015 → 2015-2020 | 0.6874    | 0.9833     |
-| 2005-2020 → 2020-2025 | 0.6328    | 1.0027     |
-| 2005-2025 → 2025-2026 | 0.6008    | 2.2441     |
+| 2005-2015 → 2015-2020 | 0.9803    | 1.3480     |
+| 2005-2020 → 2020-2025 | 0.8555    | 1.3437     |
+| 2005-2025 → 2025-2026 | 0.7821    | 2.2016     |
 
-**Stability score: 1.95** (mean OOS Sharpe / stdev OOS Sharpe). All three OOS windows show positive Sharpe, confirming the strategy works across different market regimes (2015-2020 mixed, 2020-2025 post-COVID bull, 2025-2026 continued growth). Window 3's OOS Sharpe of 2.24 is inflated by the short period (~16 months) — short evaluation periods magnify both good and bad performance.
+**Stability score: 3.30** (mean OOS Sharpe / stdev OOS Sharpe). All three OOS windows show positive Sharpe, confirming the strategy works across different market regimes (2015-2020 mixed, 2020-2025 post-COVID bull, 2025-2026 continued growth). Window 3's OOS Sharpe of 2.20 is inflated by the short period (~16 months) — short evaluation periods magnify both good and bad performance.
 
-**SO WHAT**: The baseline is regime-robust. Its IS Sharpe gradually decreases as more diverse market conditions are included (0.69 → 0.63 → 0.60), which is expected: longer histories include more volatile periods. OOS Sharpe is consistently above IS, which for a zero-parameter strategy simply means recent markets have been favorable.
+**SO WHAT**: The baseline is regime-robust. Its IS Sharpe gradually decreases as more diverse market conditions are included (0.98 → 0.86 → 0.78), which is expected: longer histories include more volatile periods. OOS Sharpe is consistently above IS, which for a zero-parameter strategy simply means recent markets have been favorable.
 
 ### 4. Event Analysis (Crisis Calendar)
 
@@ -301,12 +307,14 @@ Full stress-testing of the baseline strategy across multiple dimensions: Monte C
 
 **HOW**: [validate.py](validation/validate.py) `validate_events()` uses the framework's built-in crisis calendar (`ctx.calendars["crises"]`) to identify crisis periods and compute portfolio total return (including contributions) during each event.
 
+**Important caveat**: Event returns are computed as `(end_value - start_value) / start_value` on the total portfolio equity curve, which **includes contributions received during the event**. For prolonged events (GFC: 17 months, Eurozone: 12 months), the monthly contributions represent a significant fraction of the measured "return." The directional conclusions (DCA benefits from prolonged crises, struggles with sharp crashes) are correct, but the magnitudes overstate pure investment performance. Future strategies that alter contribution behavior during crises will need a contribution-adjusted event return metric for fair comparison.
+
 | Event                   | Return  | Interpretation |
 | ----------------------- | ------- | --- |
-| Global Financial Crisis | +5.66%  | DCA accumulates cheap shares during prolonged decline |
-| Eurozone debt crisis    | +23.08% | Extended crisis = many contribution dates at low prices |
-| COVID crash             | -26.20% | Sharp V-shaped crash — not enough time to accumulate |
-| 2022 bear market        | -0.56%  | Slow grind — contributions partially offset losses |
+| Global Financial Crisis | +8.01%  | DCA accumulates cheap shares during prolonged decline (includes ~EUR 10K in contributions) |
+| Eurozone debt crisis    | +27.25% | Extended crisis = many contribution dates at low prices (includes ~EUR 7K in contributions) |
+| COVID crash             | -27.39% | Sharp V-shaped crash — not enough time to accumulate |
+| 2022 bear market        | -0.58%  | Slow grind — contributions partially offset losses |
 
 **SO WHAT**: DCA naturally benefits from prolonged crises (GFC, Eurozone debt) because ongoing monthly contributions buy shares at depressed prices, and the recovery compounds those cheap purchases. Sharp crashes (COVID: ~1 month trough-to-recovery) don't benefit because there aren't enough PAC execution dates at the bottom. This asymmetry is a defining characteristic of DCA — future strategies that add crisis-timing logic will be measured against these baselines per-event.
 
@@ -345,15 +353,23 @@ Generated artifacts:
 
 The static 70/15/15 DCA strategy produces a reliable, conservative benchmark:
 
-| Metric | Value | Source |
+| Metric | Value | Notes |
 |---|---|---|
-| Sharpe | 0.59 (median, N=50 MC) | [results/validation.json](results/validation.json) |
-| CAGR | 19.7% | Inflated by contributions — consistent for DCA comparisons |
-| Max drawdown | -36.7% (GFC period) | Worst single-event drawdown |
-| Sortino | 0.97 | Downside-risk-adjusted return |
-| Calmar | 0.54 | CAGR / max drawdown |
-| Slippage sensitivity | <0.6% final value variation | Near-zero — strategy is deterministic |
-| Walk-forward stability | 1.95 (all windows positive) | Regime-robust across 3 windows |
+| Sharpe | 0.76 (median, N=50 MC) | Includes contribution effects — use TWRR for pure comparison |
+| CAGR | 36.1% (median, N=50 MC) | Inflated by contributions — not comparable to standard investment CAGR |
+| Max drawdown | -44.3% (median, N=50 MC) | Worst single-event drawdown |
+| Sortino | 1.36 (median, N=50 MC) | Downside-risk-adjusted return |
+| Calmar | 0.82 (median, N=50 MC) | CAGR / max drawdown |
+| TWRR | 8.58% (median, N=50 MC) | Contribution-adjusted annualized return — primary comparison metric |
+| MWRR | 9.67% (median, N=50 MC) | Money-weighted return reflecting actual investor experience |
+| Contribution sensitivity | <0.6% final value variation | Near-zero from U(500,700) sampling |
+| Walk-forward stability | 3.30 (all windows positive) | Regime-robust across 3 windows |
+
+### Metrics Philosophy
+
+All equity-curve metrics (Sharpe, CAGR, max drawdown, Sortino, Calmar) are computed from daily percentage returns of total portfolio value, which **includes monthly contributions**. This is an intentional design choice that ensures consistency across DCA-based experiments using the same contribution schedule. However, these metrics are not directly comparable to standard financial benchmarks or to strategies with different cash flow profiles.
+
+**TWRR** (Time-Weighted Rate of Return) was added to provide a contribution-adjusted performance measure — it chains sub-period returns between contribution events, eliminating the effect of cash inflows. **MWRR** (Money-Weighted Rate of Return / IRR) captures the actual investor experience including contribution timing. Future experiments should report both TWRR and equity-curve Sharpe.
 
 ### Proxy Chain Quality
 
@@ -363,11 +379,16 @@ The proxy chains are adequate for this baseline with documented limitations:
 - 21.3 years of coverage (2005-2026), limited by FX data (EURUSD=X starts Dec 2003) and GLD inception (Nov 2004)
 - Conservative bias from price-return equity proxy (~2%/year missing dividends during 2005-2009)
 
+### Allocation Drift
+
+The baseline strategy buys at 70/15/15 target weights each month but never rebalances. Over 21 years, differential asset performance causes the actual allocation to drift significantly from target. Quantifying this drift and its impact on risk-adjusted returns is a natural starting point for future experiments exploring dynamic redistribution or periodic rebalancing.
+
 ### For Future Experiments
 
 Any strategy experiment that claims to beat this baseline must show:
-1. Higher Sharpe ratio (>0.59) or better max drawdown (<-36.7%) under the same config
+1. Higher TWRR or Sharpe ratio under the same config
 2. Consistent improvement across walk-forward windows
-3. Robustness to slippage variation (MC P5 > baseline median)
+3. For strategies with hard rebalances: robustness to slippage variation (MC P5 > baseline median)
+4. Clear accounting of costs — PAC execution is fee-free, hard rebalances incur EUR 1 fee + 10bps spread
 
-Use [configs/baseline.yaml](configs/baseline.yaml) as the base config with `start_date=2005-01-01`. Register your strategy alongside `BaselineDCA` for direct comparison via `ResearchContext.compare()`.
+Use [configs/baseline.yaml](configs/baseline.yaml) as the base config with `start_date=2005-01-01` and `initial_cash=0`. Register your strategy alongside `BaselineDCA` for direct comparison via `ResearchContext.compare()`.

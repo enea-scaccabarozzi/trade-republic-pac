@@ -20,8 +20,8 @@ from strategies.baseline_dca import BaselineDCA, BaselineDCAParams
 
 from pac.backtester.config import BacktestConfig
 from pac.backtester.engine.simulator import BacktestSimulator, IterationResult
+from pac.backtester.metrics.twrr import compute_mwrr, compute_twrr
 from pac.backtester.research.context import ResearchContext
-from pac.backtester.strategies.discovery import discover_strategies
 from pac.rules.discovery import discover_rules
 from pac.rules.registry import SignalRegistry
 
@@ -32,15 +32,13 @@ START_DATE = date(2005, 1, 1)
 END_DATE = date(2026, 4, 22)
 
 CONTRIBUTION = {"min": Decimal("500"), "max": Decimal("700"), "distribution": "uniform"}
-INITIAL_CASH = Decimal("10000")
+INITIAL_CASH = Decimal("0")
 
 
 def setup_context() -> ResearchContext:
     config_path = EXPERIMENT_DIR / "configs" / "baseline.yaml"
     ctx = ResearchContext.from_config(config_path, start_date=START_DATE, end_date=END_DATE, packs=["crisis"])
-    if ctx._strategies is None:
-        ctx._strategies = discover_strategies()
-    ctx._strategies["baseline_dca"] = BaselineDCA
+    ctx.register_strategy("baseline_dca", BaselineDCA)
     return ctx
 
 
@@ -48,8 +46,8 @@ def build_config(ctx: ResearchContext, **overrides) -> BacktestConfig:
     defaults = {
         "strategy": "baseline_dca",
         "strategy_params": {},
-        "start_date": ctx._data_start,
-        "end_date": ctx._data_end,
+        "start_date": ctx.data_start,
+        "end_date": ctx.data_end,
         "initial_cash": INITIAL_CASH,
         "monthly_contribution": CONTRIBUTION,
         "pac_execution_days": [16],
@@ -76,7 +74,7 @@ def run_single(ctx: ResearchContext, config: BacktestConfig, seed: int = 42) -> 
     signal_registry = build_signal_registry()
     simulator = BacktestSimulator(
         config=config, settings=ctx.settings,
-        price_data=ctx._ticker_price_data,
+        price_data=ctx.ticker_prices,
         signal_registry=signal_registry, strategy=strategy,
         rng_seed=seed,
     )
@@ -84,12 +82,12 @@ def run_single(ctx: ResearchContext, config: BacktestConfig, seed: int = 42) -> 
 
 
 def run_mc(ctx: ResearchContext, iterations: int = 50, seed: int = 42) -> list[IterationResult]:
-    config = build_config(ctx, monte_carlo_iterations=iterations, slippage_days=(0, 3))
+    config = build_config(ctx, monte_carlo_iterations=iterations, slippage_days=(0, 0))
     strategy = BaselineDCA(BaselineDCAParams())
     signal_registry = build_signal_registry()
     simulator = BacktestSimulator(
         config=config, settings=ctx.settings,
-        price_data=ctx._ticker_price_data,
+        price_data=ctx.ticker_prices,
         signal_registry=signal_registry, strategy=strategy,
         rng_seed=seed,
     )
@@ -102,7 +100,7 @@ def run_mc(ctx: ResearchContext, iterations: int = 50, seed: int = 42) -> list[I
 
 def validate_mc(ctx: ResearchContext) -> dict:
     """Monte Carlo simulation with 50 iterations."""
-    print("\n[1/5] Monte Carlo simulation (N=50)...")
+    print("\n[1/5] Monte Carlo simulation (N=50, contribution variation)...")
     iterations = run_mc(ctx, iterations=50, seed=42)
 
     final_values = [float(it.final_value) for it in iterations]
@@ -121,6 +119,21 @@ def validate_mc(ctx: ResearchContext) -> dict:
         mp5, mmed, mp95 = np.nanpercentile(arr, [5, 50, 95])
         metric_bands[k] = {"p5": round(mp5, 4), "median": round(mmed, 4), "p95": round(mp95, 4)}
 
+    twrr_values = [compute_twrr(it) for it in iterations]
+    mwrr_values = [compute_mwrr(it, initial_cash=INITIAL_CASH) for it in iterations]
+    twrr_arr = np.array(twrr_values)
+    mwrr_arr = np.array(mwrr_values)
+    metric_bands["twrr"] = {
+        "p5": round(float(np.nanpercentile(twrr_arr, 5)), 4),
+        "median": round(float(np.nanpercentile(twrr_arr, 50)), 4),
+        "p95": round(float(np.nanpercentile(twrr_arr, 95)), 4),
+    }
+    metric_bands["mwrr"] = {
+        "p5": round(float(np.nanpercentile(mwrr_arr, 5)), 4),
+        "median": round(float(np.nanpercentile(mwrr_arr, 50)), 4),
+        "p95": round(float(np.nanpercentile(mwrr_arr, 95)), 4),
+    }
+
     result = {
         "iterations": len(iterations),
         "final_value": {"p5": round(p5, 2), "median": round(median, 2), "p95": round(p95, 2)},
@@ -137,11 +150,11 @@ def validate_mc(ctx: ResearchContext) -> dict:
 def validate_oos(ctx: ResearchContext) -> dict:
     """Out-of-sample holdout validation (70/30 split)."""
     print("\n[2/5] Out-of-sample validation (70/30 split)...")
-    total_days = (ctx._data_end - ctx._data_start).days
-    split_date = ctx._data_start + timedelta(days=int(total_days * 0.7))
+    total_days = (ctx.data_end - ctx.data_start).days
+    split_date = ctx.data_start + timedelta(days=int(total_days * 0.7))
 
-    is_config = build_config(ctx, start_date=ctx._data_start, end_date=split_date - timedelta(days=1))
-    oos_config = build_config(ctx, start_date=split_date, end_date=ctx._data_end)
+    is_config = build_config(ctx, start_date=ctx.data_start, end_date=split_date - timedelta(days=1))
+    oos_config = build_config(ctx, start_date=split_date, end_date=ctx.data_end)
 
     is_result = run_single(ctx, is_config)
     oos_result = run_single(ctx, oos_config)
@@ -149,13 +162,24 @@ def validate_oos(ctx: ResearchContext) -> dict:
     is_metrics = ctx.compute_metrics(is_result, ["sharpe", "cagr", "max_drawdown"])
     oos_metrics = ctx.compute_metrics(oos_result, ["sharpe", "cagr", "max_drawdown"])
 
+    is_twrr = compute_twrr(is_result)
+    oos_twrr = compute_twrr(oos_result)
+
     primary = "sharpe"
     deg_ratio = oos_metrics[primary] / is_metrics[primary] if is_metrics[primary] != 0 else float("nan")
 
     result = {
         "split_date": str(split_date),
-        "in_sample": {"metrics": {k: round(v, 4) for k, v in is_metrics.items()}, "final_value": float(is_result.final_value)},
-        "out_of_sample": {"metrics": {k: round(v, 4) for k, v in oos_metrics.items()}, "final_value": float(oos_result.final_value)},
+        "in_sample": {
+            "metrics": {k: round(v, 4) for k, v in is_metrics.items()},
+            "twrr": round(is_twrr, 4),
+            "final_value": float(is_result.final_value),
+        },
+        "out_of_sample": {
+            "metrics": {k: round(v, 4) for k, v in oos_metrics.items()},
+            "twrr": round(oos_twrr, 4),
+            "final_value": float(oos_result.final_value),
+        },
         "degradation_ratio": round(deg_ratio, 4),
     }
 
@@ -171,14 +195,14 @@ def validate_walk_forward(ctx: ResearchContext) -> dict:
     """Walk-forward validation: expanding IS windows, 5yr OOS steps."""
     print("\n[3/5] Walk-forward validation (10yr IS, 5yr step)...")
     windows = []
-    is_end = ctx._data_start + timedelta(days=10 * 365)
+    is_end = ctx.data_start + timedelta(days=10 * 365)
     step = timedelta(days=5 * 365)
 
-    while is_end < ctx._data_end:
-        oos_end = min(is_end + step, ctx._data_end)
+    while is_end < ctx.data_end:
+        oos_end = min(is_end + step, ctx.data_end)
         if (oos_end - is_end).days < 90:
             break
-        windows.append((ctx._data_start, is_end, is_end + timedelta(days=1), oos_end))
+        windows.append((ctx.data_start, is_end, is_end + timedelta(days=1), oos_end))
         is_end = oos_end
 
     wf_results = []
@@ -215,7 +239,7 @@ def validate_events(ctx: ResearchContext) -> dict:
     result = run_single(ctx, config)
 
     crises = ctx.calendars["crises"]
-    relevant = [e for e in crises.events if e.start <= ctx._data_end and e.end >= ctx._data_start]
+    relevant = [e for e in crises.events if e.start <= ctx.data_end and e.end >= ctx.data_start]
 
     per_event = []
     for event in relevant:
@@ -280,7 +304,7 @@ def main():
 
     print("\nLoading data...")
     ctx = setup_context()
-    print(f"Data range: {ctx._data_start} to {ctx._data_end}")
+    print(f"Data range: {ctx.data_start} to {ctx.data_end}")
 
     RESULTS_DIR.mkdir(exist_ok=True)
     all_results = {}

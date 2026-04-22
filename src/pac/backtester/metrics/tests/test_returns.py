@@ -64,3 +64,23 @@ class TestEquityToReturns:
         assert len(returns) == 2
         assert returns.iloc[0] == pytest.approx(-0.1)
         assert returns.iloc[1] == pytest.approx(0.05556, abs=1e-4)
+
+    def test_leading_zeros_are_skipped(self) -> None:
+        iteration = _make_iteration([0, 0, 0, 100, 105, 110])
+        returns = equity_to_returns(iteration)
+
+        assert len(returns) == 2
+        assert returns.iloc[0] == pytest.approx(0.05)
+        assert returns.iloc[1] == pytest.approx(0.047619, abs=1e-4)
+
+    def test_all_zeros_returns_empty(self) -> None:
+        iteration = _make_iteration([0, 0, 0])
+        returns = equity_to_returns(iteration)
+
+        assert len(returns) == 0
+
+    def test_single_nonzero_after_zeros_returns_empty(self) -> None:
+        iteration = _make_iteration([0, 0, 100])
+        returns = equity_to_returns(iteration)
+
+        assert len(returns) == 0

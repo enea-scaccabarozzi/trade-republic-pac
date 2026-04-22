@@ -96,6 +96,126 @@ class TestIndicatorsProperty:
 
 
 # ---------------------------------------------------------------------------
+# TestDataStartProperty
+# ---------------------------------------------------------------------------
+
+
+class TestDataStartProperty:
+    def test_data_start_returns_latest_first_bar(self) -> None:
+        ctx = _build_context()
+        # All three synthetic series start at date(2020, 1, 1)
+        assert ctx.data_start == date(2020, 1, 1)
+
+    def test_data_start_type_is_date(self) -> None:
+        ctx = _build_context()
+        assert isinstance(ctx.data_start, date)
+
+
+# ---------------------------------------------------------------------------
+# TestDataEndProperty
+# ---------------------------------------------------------------------------
+
+
+class TestDataEndProperty:
+    def test_data_end_returns_earliest_last_bar(self) -> None:
+        ctx = _build_context()
+        # 500 bars starting 2020-01-01, last bar is 2020-01-01 + 499 days
+        from datetime import timedelta
+
+        expected = date(2020, 1, 1) + timedelta(days=499)
+        assert ctx.data_end == expected
+
+    def test_data_end_type_is_date(self) -> None:
+        ctx = _build_context()
+        assert isinstance(ctx.data_end, date)
+
+
+# ---------------------------------------------------------------------------
+# TestTickerPricesProperty
+# ---------------------------------------------------------------------------
+
+
+class TestTickerPricesProperty:
+    def test_ticker_prices_returns_ticker_keyed_data(self) -> None:
+        ctx = _build_context()
+        assert "EUNL.DE" in ctx.ticker_prices
+
+    def test_ticker_prices_contains_all_tickers(self) -> None:
+        ctx = _build_context()
+        assert set(ctx.ticker_prices.keys()) == {"EUNL.DE", "4GLD.DE", "EUN4.DE"}
+
+    def test_ticker_prices_values_are_price_series(self) -> None:
+        ctx = _build_context()
+        from pac.models.market_data import PriceSeries
+
+        for v in ctx.ticker_prices.values():
+            assert isinstance(v, PriceSeries)
+
+
+# ---------------------------------------------------------------------------
+# TestRegisterStrategy
+# ---------------------------------------------------------------------------
+
+
+class TestRegisterStrategy:
+    def test_register_strategy_makes_it_available(self) -> None:
+        from typing import ClassVar
+
+        from pydantic import BaseModel
+
+        from pac.backtester.strategies.base import BacktestStrategy
+
+        class _Params(BaseModel, frozen=True):
+            pass
+
+        class _TestStrategy(BacktestStrategy[_Params]):
+            name: ClassVar[str] = "test_strat"
+
+            def on_signals(
+                self,
+                signals: Any,
+                snapshot: Any,
+                report: Any,
+                current_date: Any,
+            ) -> list[Any]:
+                return []
+
+        ctx = _build_context()
+        ctx.register_strategy("test_strat", _TestStrategy)
+        # Should not raise when resolving
+        instance = ctx._resolve_strategy("test_strat", {})
+        assert isinstance(instance, _TestStrategy)
+
+    def test_register_strategy_initializes_lazy_cache(self) -> None:
+        from typing import ClassVar
+
+        from pydantic import BaseModel
+
+        from pac.backtester.strategies.base import BacktestStrategy
+
+        class _Params(BaseModel, frozen=True):
+            pass
+
+        class _Dummy(BacktestStrategy[_Params]):
+            name: ClassVar[str] = "dummy"
+
+            def on_signals(
+                self,
+                signals: Any,
+                snapshot: Any,
+                report: Any,
+                current_date: Any,
+            ) -> list[Any]:
+                return []
+
+        ctx = _build_context()
+        assert ctx._strategies is None
+        ctx.register_strategy("dummy", _Dummy)
+        assert ctx._strategies is not None
+        assert "dummy" in ctx._strategies
+
+
+# ---------------------------------------------------------------------------
 # TestToDataframe
 # ---------------------------------------------------------------------------
 

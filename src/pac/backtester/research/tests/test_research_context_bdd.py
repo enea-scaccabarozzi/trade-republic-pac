@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from pytest_bdd import given, scenarios, then, when
-from tests.conftest import make_settings
+from pac.backtester.research.tests.conftest import make_test_settings
 
 from pac.backtester.data.models import Interval, PriceBar, PriceSeries
 from pac.backtester.research.context import ResearchContext
@@ -67,7 +67,7 @@ def given_research_context(ctx: dict[str, Any]) -> None:
         "EUNL.DE": price_data["stocks"],
         "4GLD.DE": price_data["gold"],
     }
-    settings = make_settings()
+    settings = make_test_settings()
     registry = IndicatorRegistry(price_data)
 
     ctx["rc"] = ResearchContext(settings, price_data, ticker_price_data, registry)
@@ -81,12 +81,12 @@ def given_research_context(ctx: dict[str, Any]) -> None:
 
 @then("the data start date is the latest first bar across all assets")
 def then_data_start(ctx: dict[str, Any]) -> None:
-    assert ctx["rc"]._data_start == ctx["expected_start"]
+    assert ctx["rc"].data_start == ctx["expected_start"]
 
 
 @then("the data end date is the earliest last bar across all assets")
 def then_data_end(ctx: dict[str, Any]) -> None:
-    assert ctx["rc"]._data_end == ctx["expected_end"]
+    assert ctx["rc"].data_end == ctx["expected_end"]
 
 
 # ── Calendar scenarios ──────────────────────────────────────────────────────

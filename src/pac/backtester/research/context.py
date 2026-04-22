@@ -172,6 +172,39 @@ class ResearchContext:
         """The underlying indicator registry (for advanced use)."""
         return self._registry
 
+    @property
+    def data_start(self) -> date:
+        """Earliest common date across all price series (latest of all first bars)."""
+        return self._data_start
+
+    @property
+    def data_end(self) -> date:
+        """Latest common date across all price series (earliest of all last bars)."""
+        return self._data_end
+
+    @property
+    def ticker_prices(self) -> dict[str, PriceSeries]:
+        """Ticker symbol → PriceSeries mapping for direct ticker-keyed access."""
+        return self._ticker_price_data
+
+    def register_strategy(
+        self,
+        name: str,
+        strategy_cls: type[BacktestStrategy[Any]],
+    ) -> None:
+        """Register a custom strategy class under the given name.
+
+        Lazy-initializes the strategy cache via ``discover_strategies()`` if
+        it has not been populated yet, then adds ``strategy_cls`` under ``name``.
+
+        Args:
+            name: Strategy name used to resolve the strategy in simulate().
+            strategy_cls: Concrete BacktestStrategy subclass to register.
+        """
+        if self._strategies is None:
+            self._strategies = discover_strategies()
+        self._strategies[name] = strategy_cls
+
     def to_dataframe(self, asset_id: str) -> Any:
         """Convert a PriceSeries to a pandas DataFrame.
 
