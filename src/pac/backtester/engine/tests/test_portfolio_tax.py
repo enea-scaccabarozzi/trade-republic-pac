@@ -64,9 +64,7 @@ class TestPortfolioTaxOnSell:
                 asset_id="stocks", direction="sell", amount_eur=Decimal("500")
             )
         ]
-        trades = portfolio._execute_rebalance_orders(
-            orders, date(2024, 1, 15), prices
-        )
+        trades = portfolio._execute_rebalance_orders(orders, date(2024, 1, 15), prices)
         assert len(trades) == 1
         trade = trades[0]
         assert trade.tax > Decimal("0")
@@ -86,9 +84,7 @@ class TestPortfolioTaxOnSell:
                 asset_id="stocks", direction="sell", amount_eur=Decimal("500")
             )
         ]
-        trades = portfolio._execute_rebalance_orders(
-            orders, date(2024, 1, 15), prices
-        )
+        trades = portfolio._execute_rebalance_orders(orders, date(2024, 1, 15), prices)
         assert trades[0].tax == Decimal("0")
 
     def test_buy_never_triggers_tax(self) -> None:
@@ -103,9 +99,7 @@ class TestPortfolioTaxOnSell:
                 asset_id="stocks", direction="buy", amount_eur=Decimal("500")
             )
         ]
-        trades = portfolio._execute_rebalance_orders(
-            orders, date(2024, 1, 15), prices
-        )
+        trades = portfolio._execute_rebalance_orders(orders, date(2024, 1, 15), prices)
         assert trades[0].tax == Decimal("0")
 
 
@@ -122,9 +116,7 @@ class TestPacIntradayPrice:
             volume=1000,
         )
         prices = {"stocks": bar}
-        trades = portfolio.execute_pac(
-            date(2024, 1, 2), prices, Decimal("500"), 2
-        )
+        trades = portfolio.execute_pac(date(2024, 1, 2), prices, Decimal("500"), 2)
         assert len(trades) == 1
         trade = trades[0]
         assert Decimal("90") <= trade.price <= Decimal("110")

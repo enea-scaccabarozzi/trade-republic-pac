@@ -171,7 +171,7 @@ class IndicatorRegistry:
         if pack_name not in packs:
             available = sorted(packs.keys())
             raise ValueError(
-                f"Unknown indicator pack: {pack_name!r}. " f"Available: {available}"
+                f"Unknown indicator pack: {pack_name!r}. Available: {available}"
             )
         packs[pack_name].register(self)
 
@@ -354,7 +354,7 @@ class IndicatorRegistry:
         # Validate min_active
         if min_active < 1 or min_active > len(parsed):
             raise ValueError(
-                f"min_active must be between 1 and {len(parsed)}, " f"got {min_active}"
+                f"min_active must be between 1 and {len(parsed)}, got {min_active}"
             )
 
         # Determine trading days from the first indicator's primary asset

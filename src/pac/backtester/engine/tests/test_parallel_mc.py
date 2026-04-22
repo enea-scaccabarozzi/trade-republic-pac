@@ -35,15 +35,24 @@ def test_parallel_mc_matches_sequential() -> None:
     seq_results = []
     for i in range(4):
         sim = BacktestSimulator(
-            config, settings, price_data, registry, strategy,
+            config,
+            settings,
+            price_data,
+            registry,
+            strategy,
             rng_seed=42 + i,
         )
         seq_results.append(sim.run_iteration(i))
 
     # Parallel — worker processes rebuild registry/strategy via discover_strategies()
     par_results = run_iterations_parallel(
-        config, settings, price_data, registry, strategy,
-        seed=42, max_workers=2,
+        config,
+        settings,
+        price_data,
+        registry,
+        strategy,
+        seed=42,
+        max_workers=2,
     )
 
     # Final values must match (order by iteration index)

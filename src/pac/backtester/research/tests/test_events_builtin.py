@@ -25,16 +25,16 @@ class TestBuiltinCalendars:
     def test_builtin_events_have_names(self) -> None:
         for name, cal in BUILTIN_CALENDARS.items():
             for event in cal.events:
-                assert (
-                    event.name is not None
-                ), f"Calendar '{name}' has event without name"
+                assert event.name is not None, (
+                    f"Calendar '{name}' has event without name"
+                )
 
     def test_builtin_events_have_tags(self) -> None:
         for name, cal in BUILTIN_CALENDARS.items():
             for event in cal.events:
-                assert (
-                    len(event.tags) > 0
-                ), f"Calendar '{name}', event '{event.name}' has no tags"
+                assert len(event.tags) > 0, (
+                    f"Calendar '{name}', event '{event.name}' has no tags"
+                )
 
     def test_builtin_crises_count(self) -> None:
         assert len(BUILTIN_CALENDARS["crises"]) == 5

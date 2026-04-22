@@ -270,9 +270,7 @@ def _compute_summary(
         * pac_count
     )
 
-    tax_per_iter = [
-        sum(float(t.tax) for t in it.trades) for it in iterations
-    ]
+    tax_per_iter = [sum(float(t.tax) for t in it.trades) for it in iterations]
     total_tax = (
         ConfidenceInterval(
             p5=float(np.percentile(tax_per_iter, 5)),

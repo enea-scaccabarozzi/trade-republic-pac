@@ -211,11 +211,10 @@ class SimulatedPortfolio:
                     rounding=ROUND_HALF_UP,
                 )
                 sell_cost_basis = (sell_qty * pos.avg_cost).quantize(
-                    _CENTS, rounding=ROUND_HALF_UP,
+                    _CENTS,
+                    rounding=ROUND_HALF_UP,
                 )
-                meta = self._asset_tax_meta.get(
-                    order.asset_id, AssetTaxMeta()
-                )
+                meta = self._asset_tax_meta.get(order.asset_id, AssetTaxMeta())
                 tax_result = self._tax_regime.compute_tax(
                     proceeds=actual_amount,
                     cost_basis=sell_cost_basis,

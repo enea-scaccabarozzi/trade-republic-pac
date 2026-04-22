@@ -497,8 +497,7 @@ def dashboard(
         con = Console()
         con.print("[yellow]Warning: SPA not built. Only API available.[/yellow]")
         con.print(
-            "[dim]Build with: cd src/pac/backtester/dashboard"
-            " && bun run build[/dim]",
+            "[dim]Build with: cd src/pac/backtester/dashboard && bun run build[/dim]",
         )
 
     if not no_open:
@@ -840,8 +839,7 @@ def sweep_cmd(
     best_val = best.metrics.get(primary, float("nan"))
     params_str = ", ".join(f"{k}={v}" for k, v in best.params.items())
     con.print(
-        f"\nBest: {params_str} "
-        f"({primary.replace('_', ' ').title()}: {best_val:.4f})"
+        f"\nBest: {params_str} ({primary.replace('_', ' ').title()}: {best_val:.4f})"
     )
 
 

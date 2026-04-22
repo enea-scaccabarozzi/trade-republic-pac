@@ -8,11 +8,11 @@ from typing import Any
 
 import pytest
 from pytest_bdd import given, scenarios, then, when
-from pac.backtester.research.tests.conftest import make_test_settings
 
 from pac.backtester.data.models import Interval, PriceBar, PriceSeries
 from pac.backtester.research.context import ResearchContext
 from pac.backtester.research.indicators import IndicatorRegistry
+from pac.backtester.research.tests.conftest import make_test_settings
 
 scenarios("../features/research_context.feature")
 
@@ -73,7 +73,7 @@ def given_research_context(ctx: dict[str, Any]) -> None:
     ctx["rc"] = ResearchContext(settings, price_data, ticker_price_data, registry)
     # Store expected intersection boundaries for assertions
     ctx["expected_start"] = date(2022, 1, 5)  # gold starts later
-    ctx["expected_end"] = date(2022, 1, 26)   # gold ends earlier
+    ctx["expected_end"] = date(2022, 1, 26)  # gold ends earlier
 
 
 # ── Date range scenarios ────────────────────────────────────────────────────

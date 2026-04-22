@@ -22,7 +22,8 @@ def _make_iteration_with_contributions(
 
     Args:
         daily_values: ``[(day_offset, total_value), ...]``
-        contributions: ``[(day_offset, amount), ...]`` — creates PAC trades on those days.
+        contributions: ``[(day_offset, amount), ...]`` — creates
+            PAC trades on those days.
         start: Reference date for day offsets.
 
     Returns:

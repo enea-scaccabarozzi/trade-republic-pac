@@ -125,9 +125,7 @@ class BacktestSimulator:
         )
 
         # Resolve tax regime
-        self._tax_regime = resolve_tax_regime(
-            config.tax_regime, config.tax_params
-        )
+        self._tax_regime = resolve_tax_regime(config.tax_regime, config.tax_params)
 
         # Build asset tax metadata from settings
         self._asset_tax_meta: dict[str, AssetTaxMeta] = {
@@ -348,9 +346,7 @@ class BacktestSimulator:
                             IndicatorDataPoint(date=d, value=value),
                         )
 
-        total_tax = sum(
-            (t.tax for t in portfolio.trade_log), Decimal(0)
-        )
+        total_tax = sum((t.tax for t in portfolio.trade_log), Decimal(0))
         return IterationResult(
             iteration=iteration,
             daily_values=daily_values,
@@ -430,7 +426,11 @@ def _iteration_worker(
     strategy = strategy_cls(params)
 
     simulator = BacktestSimulator(
-        config, settings, price_data, registry, strategy,
+        config,
+        settings,
+        price_data,
+        registry,
+        strategy,
         rng_seed=seed + iteration,
     )
     return simulator.run_iteration(iteration)
@@ -475,7 +475,11 @@ def run_iterations_parallel(
 
     if n <= 1:
         sim = BacktestSimulator(
-            config, settings, price_data, registry, strategy,
+            config,
+            settings,
+            price_data,
+            registry,
+            strategy,
             rng_seed=base_seed,
         )
         result = sim.run_iteration(0)

@@ -102,9 +102,7 @@ class TulipyPack:
         try:
             import tulipy as ti
         except ImportError as exc:
-            msg = (
-                "tulipy is not installed. " "Install it with: uv sync --group research"
-            )
+            msg = "tulipy is not installed. Install it with: uv sync --group research"
             raise ImportError(msg) from exc
 
         for attr_name in dir(ti):

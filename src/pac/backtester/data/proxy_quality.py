@@ -69,12 +69,8 @@ def assess_proxy_quality(
     # compute daily returns over overlap
     import numpy as np
 
-    proxy_prices = np.array(
-        [float(proxy_dates[d].close) for d in overlap_dates]
-    )
-    target_prices = np.array(
-        [float(target_dates[d].close) for d in overlap_dates]
-    )
+    proxy_prices = np.array([float(proxy_dates[d].close) for d in overlap_dates])
+    target_prices = np.array([float(target_dates[d].close) for d in overlap_dates])
 
     valid = (proxy_prices[:-1] > 0) & (target_prices[:-1] > 0)
     proxy_ret = np.diff(proxy_prices) / np.where(

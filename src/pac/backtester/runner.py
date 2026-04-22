@@ -130,9 +130,7 @@ def run_pipeline(
         else:
             max_workers = min(len(assets_with_tickers), 8)
             with ThreadPoolExecutor(max_workers=max_workers) as pool:
-                futures = {
-                    pool.submit(_fetch_asset, a): a for a in assets_with_tickers
-                }
+                futures = {pool.submit(_fetch_asset, a): a for a in assets_with_tickers}
                 for future in as_completed(futures):
                     ticker, series = future.result()
                     price_data[ticker] = series

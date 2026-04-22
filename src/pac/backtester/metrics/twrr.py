@@ -90,7 +90,7 @@ def compute_twrr(iteration: IterationResult) -> float:
     if chain <= 0:
         return float("nan")
 
-    return chain ** (1.0 / years) - 1.0
+    return float(chain ** (1.0 / years) - 1.0)
 
 
 def compute_mwrr(
@@ -138,10 +138,10 @@ def compute_mwrr(
 
     # Newton's method to find IRR
     def npv(r: float) -> float:
-        return sum(cf / (1.0 + r) ** t for t, cf in flows)
+        return float(sum(cf / (1.0 + r) ** t for t, cf in flows))
 
     def npv_deriv(r: float) -> float:
-        return sum(-t * cf / (1.0 + r) ** (t + 1) for t, cf in flows)
+        return float(sum(-t * cf / (1.0 + r) ** (t + 1) for t, cf in flows))
 
     r = 0.10  # initial guess
     for _ in range(200):

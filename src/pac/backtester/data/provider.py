@@ -185,9 +185,7 @@ class MarketDataProvider:
         results: dict[str, PriceSeries] = {}
         max_workers = min(len(requests), 8)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(self.fetch, req): req.ticker for req in requests
-            }
+            futures = {pool.submit(self.fetch, req): req.ticker for req in requests}
             for future in as_completed(futures):
                 ticker = futures[future]
                 results[ticker] = future.result()

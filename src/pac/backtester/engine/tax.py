@@ -291,8 +291,6 @@ def resolve_tax_regime(
             government_bond_rate=Decimal(
                 str(params.get("government_bond_rate", "0.125"))
             ),
-            loss_carryforward_years=int(
-                params.get("loss_carryforward_years", 4)
-            ),
+            loss_carryforward_years=int(params.get("loss_carryforward_years", 4)),
         )
     return cls()

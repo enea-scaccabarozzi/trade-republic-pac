@@ -175,7 +175,7 @@ def generate_plot(
 
     if kind not in _SUPPORTED_PLOT_KINDS:
         raise ValueError(
-            f"Unknown plot kind {kind!r}. " f"Supported: {_SUPPORTED_PLOT_KINDS}"
+            f"Unknown plot kind {kind!r}. Supported: {_SUPPORTED_PLOT_KINDS}"
         )
 
     qs = _import_qs()
