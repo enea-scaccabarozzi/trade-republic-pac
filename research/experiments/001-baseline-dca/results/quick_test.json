@@ -1,0 +1,15 @@
+{
+  "period": "2005-01-03 to 2026-04-22",
+  "trading_days": 5436,
+  "total_trades": 747,
+  "total_invested": "151710",
+  "total_fees": "0",
+  "total_tax": "0",
+  "final_value": "483009.10",
+  "gain_pct": 218.38,
+  "metrics": {
+    "sharpe": 0.5941,
+    "cagr": 0.197,
+    "max_drawdown": -0.3668
+  }
+}

@@ -73,9 +73,16 @@ Each experiment is a self-contained directory under `research/experiments/`:
 ```
 research/experiments/003-dd-threshold-sweep/
 ├── experiment.toml            # Seed metadata: hypothesis, tags, references
-├── explore.py                 # Marimo notebook — exploration workspace
-├── consolidate.py             # Marimo notebook — strategy dev & quick tests
-├── validate.py                # Marimo notebook — full validation runs
+├── exploration/               # Phase 1: data exploration scripts & notebooks
+│   ├── explore.py             # Marimo notebook — exploration workspace
+│   ├── check_data.py          # Ad-hoc data investigation scripts
+│   └── ...
+├── consolidation/             # Phase 2: strategy development & quick tests
+│   ├── consolidate.py         # Marimo notebook — strategy dev & quick tests
+│   └── ...
+├── validation/                # Phase 3: full validation runs
+│   ├── validate.py            # Marimo notebook — MC, OOS, walk-forward
+│   └── ...
 ├── configs/                   # Experiment-local configuration variants
 │   ├── baseline.yaml          # Copy of pac.yaml with experiment-specific overrides
 │   └── aggressive.yaml        # Alternative config for a variant
@@ -98,10 +105,12 @@ Not every experiment needs every directory. A pure exploration experiment might 
 
 | Content | Location |
 |---|---|
-| Marimo notebooks (all phases) | Experiment root (`explore.py`, `consolidate.py`, `validate.py`, ...) |
+| Exploration scripts & notebooks | `exploration/` |
+| Consolidation scripts & notebooks | `consolidation/` |
+| Validation scripts & notebooks | `validation/` |
 | Configuration variants for `ResearchContext.from_config()` | `configs/` |
 | New strategies or signal rules | `strategies/` |
-| Complex reusable logic (shared across notebooks) | `lib/` or standalone `.py` modules |
+| Complex reusable logic (shared across phases) | `lib/` or standalone `.py` modules in experiment root |
 | Simulation results, comparison tables, sweep outputs | `results/` (JSON, CSV) |
 | Plots, tearsheets, generated figures | `artifacts/` |
 | The research narrative | `FINDINGS.md` |
@@ -111,19 +120,19 @@ Not every experiment needs every directory. A pure exploration experiment might 
 
 All research phases use **Marimo notebooks** (`.py` format) as the primary interface. Marimo notebooks are interactive, reproducible, and version-control friendly. They are easier to run than scripts and provide immediate visual feedback.
 
-Common notebook patterns:
-- `explore.py` — initial data exploration, indicator analysis, visual inspection
-- `consolidate.py` — strategy development, quick simulations, variant comparison
-- `validate.py` — full validation runs, MC simulations, OOS analysis, tearsheets
+Scripts and notebooks are organized into phase folders:
+- `exploration/explore.py` — initial data exploration, indicator analysis, visual inspection
+- `consolidation/consolidate.py` — strategy development, quick simulations, variant comparison
+- `validation/validate.py` — full validation runs, MC simulations, OOS analysis, tearsheets
 
-An experiment can have as many notebooks as needed. The scaffolded `explore.py` is a starting point, not a constraint. When logic grows complex, extract it into standalone `.py` modules or a `lib/` folder and import from notebooks.
+Each phase folder can contain as many scripts/notebooks as needed — the scaffolded ones are starting points, not constraints. Ad-hoc investigation scripts (data checks, debugging, one-off analyses) go in the phase folder where they were created. When logic is shared across phases, extract it into standalone `.py` modules in the experiment root or a `lib/` folder.
 
 ### Configuration variants
 
 Many `ResearchContext` methods require a config path. The `configs/` folder holds experiment-specific configuration variants — copies of `pac.yaml` with modified asset allocations, different tickers, alternative contribution schedules, or any config-level hypothesis.
 
 ```python
-# In a Marimo notebook cell
+# In a Marimo notebook cell (paths relative to experiment root)
 ctx = ResearchContext.from_config("configs/aggressive.yaml", packs=["crisis"])
 ```
 
@@ -154,6 +163,8 @@ The experiment directory is a complete record. If something was tried, it stays.
 
 The research narrative. This is the primary deliverable of every experiment — the document a future researcher reads to understand what was done, what was learned, and why.
 
+**Core principle**: FINDINGS.md must be a self-contained research narrative. A reader should be able to reconstruct the full research methodology — including failed paths, tool choices, and reasoning — from FINDINGS.md alone. Scripts, result files, and reports are drill-down resources, not prerequisites.
+
 It grows as the experiment progresses. Each research phase adds a section. Early experiments might only have an exploration section; fully validated experiments have all three.
 
 ### Structure
@@ -167,24 +178,40 @@ It grows as the experiment progresses. Each research phase adds a section. Early
 
 ## Exploration
 
-What data was examined. What patterns were found (or not found).
-Initial observations, plots, statistical results.
-What led to the next step — or why the idea was abandoned.
+### Scripts Used (in order of creation)
+
+1. [script_a.py](script_a.py) — what it does and why it was created
+2. [script_b.py](script_b.py) — what it does and why it was created
+
+### {Subsection per topic investigated}
+
+Narrative for each topic. For each significant result:
+- **WHY** this was investigated (what question it answers)
+- **HOW** it was done (method, parameters, data window)
+- **WHAT** was found (specific numbers)
+- **SO WHAT** (what decision this informs)
+
+### Failing Paths
+
+For each approach that was tried and abandoned:
+- What was attempted
+- What went wrong (error, unexpected result, logical flaw)
+- What it taught us (insight that informed the next approach)
+
+### Phase Deliverables
+
+| Deliverable | Path | Description |
+|---|---|---|
+| Raw data | [results/data.json](results/data.json) | Description |
+| Plot | [artifacts/plot.png](artifacts/plot.png) | Description |
 
 ## Consolidation
 
-How the insight was translated into a strategy/signal.
-Which existing strategies or rules were used as a base.
-Quick simulation results and comparisons against baseline.
-Iterations: what was tried, what worked, what didn't.
+{Same structure: scripts used → narrative with WHY/HOW → failing paths → deliverables}
 
 ## Validation
 
-Full MC results (N, slippage config, tax regime).
-OOS holdout results (split date, degradation ratio).
-Walk-forward stability (window config, stability score).
-Event-based analysis (which calendars, per-event performance).
-Parameter sensitivity (does it degrade near the chosen params?).
+{Same structure: scripts used → narrative with WHY/HOW → failing paths → deliverables}
 
 ## Conclusion
 
@@ -194,11 +221,20 @@ Limitations, caveats, open questions.
 Implications for future experiments.
 ```
 
-Not every section needs to be long. A rejected hypothesis might have two paragraphs in Exploration and a one-line Conclusion. The important thing is that the reasoning is captured.
+### Documentation depth by result type
+
+Not every finding needs the same treatment. Scale the WHY/HOW depth to the significance:
+
+| Result type | Documentation depth |
+|---|---|
+| Key decision (proxy choice, strategy design, param freeze) | Full WHY/HOW/WHAT/SO-WHAT treatment |
+| Failing path or dead end | Attempt → failure → insight → next approach |
+| Routine check (data availability, sanity test) | One paragraph with link to script |
+| Final validation metrics | Table with interpretation (what the numbers mean for the go/no-go) |
 
 ### Linking to artifacts
 
-Keep FINDINGS.md readable by linking to detailed outputs rather than inlining them:
+Keep FINDINGS.md readable by linking to detailed outputs rather than inlining them. But always provide enough context in the narrative that the reader doesn't NEED to open the linked file to understand the conclusion.
 
 ```markdown
 Full tearsheet: [artifacts/tearsheet.html](artifacts/tearsheet.html)
@@ -337,11 +373,11 @@ just new-experiment shallow_corrections --title "Shallow Correction Tilt Strateg
 
 # Fill in the hypothesis in experiment.toml
 # Open the exploration notebook
-marimo edit research/experiments/001-shallow-corrections/explore.py
+marimo edit research/experiments/001-shallow-corrections/exploration/explore.py
 
 # Later: open consolidation or validation notebooks
-marimo edit research/experiments/001-shallow-corrections/consolidate.py
-marimo edit research/experiments/001-shallow-corrections/validate.py
+marimo edit research/experiments/001-shallow-corrections/consolidation/consolidate.py
+marimo edit research/experiments/001-shallow-corrections/validation/validate.py
 ```
 
 ## Conventions
@@ -352,6 +388,7 @@ marimo edit research/experiments/001-shallow-corrections/validate.py
 - Results in `results/` (JSON, CSV) are committed — they are the quantitative record
 - Strategy/signal code inside experiments is not auto-discovered by the production framework — it must be explicitly imported or promoted to `src/pac/` (promotion process is separate)
 - Negative results are valuable — document why something didn't work
+- FINDINGS.md must be self-contained: script links, failing paths, WHY/HOW depth, phase deliverables (see FINDINGS.md section above)
 
 ## Commands
 

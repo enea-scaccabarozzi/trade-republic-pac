@@ -1,0 +1,128 @@
+{
+  "monte_carlo": {
+    "iterations": 50,
+    "final_value": {
+      "p5": 481059.87,
+      "median": 482400.95,
+      "p95": 483725.09
+    },
+    "metrics": {
+      "sharpe": {
+        "p5": 0.5934,
+        "median": 0.5938,
+        "p95": 0.5943
+      },
+      "cagr": {
+        "p5": 0.1967,
+        "median": 0.1969,
+        "p95": 0.197
+      },
+      "max_drawdown": {
+        "p5": -0.3726,
+        "median": -0.3665,
+        "p95": -0.3623
+      },
+      "sortino": {
+        "p5": 0.9666,
+        "median": 0.9696,
+        "p95": 0.9727
+      },
+      "calmar": {
+        "p5": 0.5282,
+        "median": 0.5371,
+        "p95": 0.5437
+      }
+    }
+  },
+  "oos": {
+    "split_date": "2019-12-01",
+    "in_sample": {
+      "metrics": {
+        "sharpe": 0.6324,
+        "cagr": 0.226,
+        "max_drawdown": -0.3668
+      },
+      "final_value": 218417.71
+    },
+    "out_of_sample": {
+      "metrics": {
+        "sharpe": 0.8967,
+        "cagr": 0.3769,
+        "max_drawdown": -0.2592
+      },
+      "final_value": 78162.46
+    },
+    "degradation_ratio": 1.4179
+  },
+  "walk_forward": {
+    "windows": [
+      {
+        "is_period": "2005-01-03 to 2015-01-01",
+        "oos_period": "2015-01-02 to 2019-12-31",
+        "is_metrics": {
+          "sharpe": 0.6874,
+          "cagr": 0.2767,
+          "max_drawdown": -0.3668
+        },
+        "oos_metrics": {
+          "sharpe": 0.9833,
+          "cagr": 0.4086,
+          "max_drawdown": -0.211
+        }
+      },
+      {
+        "is_period": "2005-01-03 to 2019-12-31",
+        "oos_period": "2020-01-01 to 2024-12-29",
+        "is_metrics": {
+          "sharpe": 0.6328,
+          "cagr": 0.2265,
+          "max_drawdown": -0.3668
+        },
+        "oos_metrics": {
+          "sharpe": 1.0027,
+          "cagr": 0.4236,
+          "max_drawdown": -0.2138
+        }
+      },
+      {
+        "is_period": "2005-01-03 to 2024-12-29",
+        "oos_period": "2024-12-30 to 2026-04-22",
+        "is_metrics": {
+          "sharpe": 0.6008,
+          "cagr": 0.2018,
+          "max_drawdown": -0.3668
+        },
+        "oos_metrics": {
+          "sharpe": 2.2441,
+          "cagr": 0.6957,
+          "max_drawdown": -0.0802
+        }
+      }
+    ],
+    "stability_score": 1.9519
+  },
+  "events": {
+    "events": [
+      {
+        "name": "Global Financial Crisis",
+        "period": "2007-10-09 to 2009-03-09",
+        "return": 0.0566
+      },
+      {
+        "name": "Eurozone debt crisis",
+        "period": "2011-07-01 to 2012-06-30",
+        "return": 0.2308
+      },
+      {
+        "name": "COVID crash",
+        "period": "2020-02-19 to 2020-03-23",
+        "return": -0.262
+      },
+      {
+        "name": "2022 bear market",
+        "period": "2022-01-03 to 2022-10-12",
+        "return": -0.0056
+      }
+    ]
+  }
+}

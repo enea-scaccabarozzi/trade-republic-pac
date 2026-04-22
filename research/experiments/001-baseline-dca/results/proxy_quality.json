@@ -1,0 +1,78 @@
+{
+  "stocks_msci_world_to_iwda": {
+    "proxy_ticker": "^990100-USD-STRD",
+    "target_ticker": "IWDA.AS",
+    "overlap_days": 755,
+    "correlation": 0.6988896857955605,
+    "proxy_vol": 0.18002459011544508,
+    "target_vol": 0.14995167891311886,
+    "vol_ratio": 1.2005506801944532,
+    "quality": "poor",
+    "issues": [
+      "Correlation 0.699 < 0.7 (reject threshold)"
+    ]
+  },
+  "stocks_iwda_to_vwce": {
+    "proxy_ticker": "IWDA.AS",
+    "target_ticker": "VWCE.DE",
+    "overlap_days": 764,
+    "correlation": 0.9919093199133698,
+    "proxy_vol": 0.19493392226359682,
+    "target_vol": 0.1953164512080994,
+    "vol_ratio": 0.9980414914251385,
+    "quality": "good",
+    "issues": []
+  },
+  "stocks_vhgex_to_iwda": {
+    "proxy_ticker": "VHGEX",
+    "target_ticker": "IWDA.AS",
+    "overlap_days": 755,
+    "correlation": 0.6224231032248269,
+    "proxy_vol": 0.1989894791965786,
+    "target_vol": 0.14995167891311886,
+    "vol_ratio": 1.3270240162624118,
+    "quality": "poor",
+    "issues": [
+      "Correlation 0.622 < 0.7 (reject threshold)"
+    ]
+  },
+  "stocks_msci_vs_vhgex_2001_2009": {
+    "proxy_ticker": "^990100-USD-STRD",
+    "target_ticker": "VHGEX",
+    "overlap_days": 2194,
+    "correlation": 0.7466030741333086,
+    "proxy_vol": 0.2051826992209874,
+    "target_vol": 0.20759579022575364,
+    "vol_ratio": 0.9883760118538912,
+    "quality": "warning",
+    "issues": [
+      "Correlation 0.747 < 0.9 (warning threshold)"
+    ]
+  },
+  "gold_gcf_to_sgln": {
+    "proxy_ticker": "GC=F",
+    "target_ticker": "SGLN.L",
+    "overlap_days": 754,
+    "correlation": 0.7591046553424736,
+    "proxy_vol": 0.2014013826999475,
+    "target_vol": 0.20012831665060432,
+    "vol_ratio": 1.0063612489759046,
+    "quality": "warning",
+    "issues": [
+      "Correlation 0.759 < 0.9 (warning threshold)"
+    ]
+  },
+  "bonds_vbmfx_to_agg": {
+    "proxy_ticker": "VBMFX",
+    "target_ticker": "AGG",
+    "overlap_days": 758,
+    "correlation": 0.7749530029407269,
+    "proxy_vol": 0.03809350181772042,
+    "target_vol": 0.03848526798829892,
+    "vol_ratio": 0.989820360073948,
+    "quality": "warning",
+    "issues": [
+      "Correlation 0.775 < 0.9 (warning threshold)"
+    ]
+  }
+}

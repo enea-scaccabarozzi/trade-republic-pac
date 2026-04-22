@@ -50,13 +50,13 @@ Each submodule has co-located `tests/`, `features/`, and a `README.md` with deta
 
 Before working in a specific area, read the relevant reference:
 
-| Topic | Reference |
-|---|---|
-| BDD feature files & step definitions | [docs/bdd.md](docs/bdd.md) |
-| Testing philosophy, DI, mocking | [docs/testing.md](docs/testing.md) |
-| Documentation standards | [docs/documentation.md](docs/documentation.md) |
-| Crisis indicators research | [docs/crisis-indicators-research.md](docs/crisis-indicators-research.md) |
-| Research experiments & process | [research/README.md](research/README.md) |
+| Topic                                | Reference                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| BDD feature files & step definitions | [docs/bdd.md](docs/bdd.md)                                               |
+| Testing philosophy, DI, mocking      | [docs/testing.md](docs/testing.md)                                       |
+| Documentation standards              | [docs/documentation.md](docs/documentation.md)                           |
+| Crisis indicators research           | [docs/crisis-indicators-research.md](docs/crisis-indicators-research.md) |
+| Research experiments & process       | [research/README.md](research/README.md)                                 |
 
 Module dependencies are declared in each submodule's `README.md` under a `## Dependencies` section. Import direction must follow those declarations — circular imports are not permitted.
 

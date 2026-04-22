@@ -114,13 +114,15 @@ def scaffold_experiment(
         .replace("{slug}", slug)
     )
 
-    # Create experiment directory and files
+    # Create experiment directory, phase folders, and files
     exp_dir.mkdir(parents=True, exist_ok=True)
+    for phase_dir in ("exploration", "consolidation", "validation"):
+        (exp_dir / phase_dir).mkdir(exist_ok=True)
 
     toml_path = exp_dir / "experiment.toml"
     toml_path.write_text(toml_content, encoding="utf-8")
 
-    explore_path = exp_dir / "explore.py"
+    explore_path = exp_dir / "exploration" / "explore.py"
     explore_path.write_text(explore_content, encoding="utf-8")
 
     created: list[Path] = [toml_path, explore_path]

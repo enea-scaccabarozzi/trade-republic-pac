@@ -1,0 +1,32 @@
+{
+  "gold_gcf_vs_gld_sameccy": {
+    "daily_corr": 0.8903,
+    "weekly_corr": 0.9856,
+    "monthly_corr": 0.9934,
+    "overlap_days": 5376,
+    "vol_1": 0.1826,
+    "vol_2": 0.1813,
+    "vol_ratio": 1.01,
+    "quality": "GOOD"
+  },
+  "bonds_vbmfx_vs_agg_full": {
+    "daily_corr": 0.7848,
+    "weekly_corr": 0.8268,
+    "monthly_corr": 0.9771,
+    "overlap_days": 5675,
+    "vol_1": 0.0448,
+    "vol_2": 0.0518,
+    "vol_ratio": 0.86,
+    "quality": "GOOD"
+  },
+  "bonds_vbmfx_vs_agg_3yr": {
+    "daily_corr": 0.7749,
+    "weekly_corr": 0.8807,
+    "monthly_corr": 0.9763,
+    "overlap_days": 758,
+    "vol_1": 0.0381,
+    "vol_2": 0.0385,
+    "vol_ratio": 0.99,
+    "quality": "GOOD"
+  }
+}

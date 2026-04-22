@@ -1,0 +1,7 @@
+[experiment]
+created = 2026-04-22
+id = "001"
+slug = "baseline-dca"
+title = "Baseline DCA 70/15/15"
+hypothesis = "A static DCA strategy investing monthly on the 16th with 70% stocks / 15% gold / 15% bonds using EUR-denominated ETFs produces stable long-term growth suitable as a benchmark for all future strategy experiments."
+tags = ["baseline", "dca", "proxy-validation", "long-term"]
