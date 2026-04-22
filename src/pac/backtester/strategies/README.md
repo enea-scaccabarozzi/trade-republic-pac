@@ -37,11 +37,12 @@ Strategies are **stateful** — unlike `SignalRule`, they store params on `self`
 
 ### Hooks
 
-| Hook            | Called when                                             | Returns                       | Required |
-| --------------- | ------------------------------------------------------- | ----------------------------- | -------- |
-| `on_signals()`  | Trading day produces at least one signal                | `list[Action]` (may be empty) | Yes      |
-| `on_pac_date()` | PAC execution date (2nd/16th), before PAC buy           | `PacAdjustment \| None`       | No       |
-| `reset()`       | Before each Monte Carlo iteration (clear per-run state) | `None`                        | No       |
+| Hook               | Called when                                             | Returns                       | Required |
+| ------------------ | ------------------------------------------------------- | ----------------------------- | -------- |
+| `on_signals()`     | Trading day produces at least one signal                | `list[Action]` (may be empty) | Yes      |
+| `on_pac_date()`    | PAC execution date (2nd/16th), before PAC buy           | `PacAdjustment \| None`       | No       |
+| `on_trading_day()` | Every trading day, after snapshot/report computation    | `None` (observation only)     | No       |
+| `reset()`          | Before each Monte Carlo iteration (clear per-run state) | `None`                        | No       |
 
 ## Usage
 

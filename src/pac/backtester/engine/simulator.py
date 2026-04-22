@@ -280,7 +280,10 @@ class BacktestSimulator:
             snapshot = portfolio.snapshot(d, prices)
             report = calculate_deviations(snapshot, self._settings)
 
-            # 3.5. Build market context for this date
+            # 3.5. Let strategy observe daily state
+            self._strategy.on_trading_day(snapshot, report, d)
+
+            # 3.6. Build market context for this date
             market_ctx = BacktestMarketContext(
                 price_data=self._price_data,
                 current_date=d,

@@ -157,3 +157,21 @@ class BacktestStrategy(ABC, Generic[ParamsT]):
         Default: None (maintain current PAC allocation).
         """
         return None
+
+    def on_trading_day(
+        self,
+        snapshot: PortfolioSnapshot,
+        report: DeviationReport,
+        current_date: date,
+    ) -> None:
+        """Optional hook: observe daily portfolio state.
+
+        Called every trading day after snapshot/report computation.
+        Use for accumulating state (allocation history, running
+        averages). Cannot emit actions — observation only.
+
+        Args:
+            snapshot: Current portfolio state (post-PAC if PAC date).
+            report: Deviation analysis for current portfolio.
+            current_date: The trading day being processed.
+        """
