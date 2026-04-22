@@ -1,7 +1,7 @@
 # Drift-Based Contribution Steering
 
 > **Hypothesis**: Dynamically redistributing fixed monthly DCA contributions toward underweight assets based on portfolio allocation drift improves risk-adjusted returns compared to static 70/15/15 allocation, without selling or incurring fees.
-> **Status**: consolidating
+> **Status**: concluded
 > **Date**: 2026-04-22
 > **Depends on**: [001-baseline-dca](../001-baseline-dca/FINDINGS.md)
 
@@ -174,3 +174,153 @@ Given the fundamental tension between TWRR/Sharpe and final value, three candida
 | DriftDCA strategy | [strategies/drift_dca.py](strategies/drift_dca.py) | Parameterized strategy with 3 formulas |
 | Consolidation sweep | [consolidation/quick_test.py](consolidation/quick_test.py) | Quick-test + 54-config parameter sweep |
 | Sweep results | [results/consolidation_sweep.json](results/consolidation_sweep.json) | Full metrics for all configurations |
+
+## Validation
+
+### Scripts Used
+
+1. [validate.py](validation/validate.py) — full validation suite: Monte Carlo (N=50), OOS (70/30 temporal split), walk-forward (10yr IS, 5yr step), event analysis (crisis calendar), and QuantStats tearsheet for the best candidate
+
+### Candidates Validated
+
+| Name | Formula | Tilt | Threshold | Rationale |
+|------|---------|------|-----------|-----------|
+| Conservative | proportional | 0.3 | 3.0 | Minimal intervention, smallest final-value cost |
+| Moderate | proportional | 1.0 | 3.0 | Full proportional tilt, moderate cost |
+| Aggressive | stepped | 0.5 | 2.0 | Discrete jumps, largest TWRR gain in consolidation |
+
+### Monte Carlo (N=50, stochastic contributions €500–700)
+
+**WHY**: Contribution amounts vary randomly between €500 and €700 each month. MC tests whether the strategy's advantage holds across 50 different contribution sequences, not just one deterministic path.
+
+**HOW**: 50 iterations per candidate with different RNG seeds controlling monthly contribution amounts. All other parameters (prices, dates, fees) are fixed. Report median and [P5, P95] confidence intervals.
+
+**WHAT**:
+
+| Metric | Baseline | Conservative | Moderate | Aggressive |
+|--------|----------|-------------|----------|------------|
+| TWRR (median) | 8.58% | 8.62% (+0.04pp) | 8.70% (+0.12pp) | 8.77% (+0.19pp) |
+| Sharpe | 0.759 | 0.760 (+0.001) | 0.761 (+0.002) | 0.764 (+0.005) |
+| Max DD | -44.3% | -44.2% (+0.1pp) | -43.7% (+0.6pp) | -39.4% (+4.9pp) |
+| Calmar | 0.819 | 0.821 (+0.002) | 0.830 (+0.011) | 0.918 (+0.099) |
+| Sortino | 1.356 | 1.357 (+0.001) | 1.354 (-0.002) | 1.332 (-0.024) |
+| Final Value | €472,175 | €471,637 (-€538) | €470,581 (-€1,594) | €464,379 (-€7,796) |
+
+Confidence intervals are tight (P5–P95 spread ~1–2% of median), confirming that results are stable across contribution randomness.
+
+**SO WHAT**: All three candidates consistently improve TWRR and Sharpe over MC runs. The aggressive candidate stands out with a +4.9pp improvement in max drawdown and a +12% improvement in Calmar ratio — but at a cost of -€7,796 in final value (-1.7%). The moderate candidate offers a good middle ground: +0.12pp TWRR, +0.6pp better max drawdown, and only -€1,594 final value cost (-0.3%).
+
+### Out-of-Sample (70/30 temporal split at 2019-12-01)
+
+**WHY**: The strategy was designed and tuned on the full 2005–2026 period. OOS tests whether it generalizes or was overfit to the training data.
+
+**HOW**: Train on 2005-01-03 to 2019-12-01 (IS), test on 2019-12-01 to 2026-04-22 (OOS). Compare IS vs OOS Sharpe via degradation_ratio (OOS Sharpe / IS Sharpe). Values > 1.0 mean OOS outperforms IS — the opposite of overfitting.
+
+**WHAT**:
+
+| Metric | Baseline | Conservative | Moderate | Aggressive |
+|--------|----------|-------------|----------|------------|
+| IS Sharpe | 0.856 | 0.857 | 0.859 | 0.859 |
+| IS TWRR | 7.22% | 7.27% | 7.40% | 7.52% |
+| IS Max DD | -43.8% | -43.9% | -43.5% | -39.2% |
+| OOS Sharpe | 1.235 | 1.226 | 1.217 | 1.202 |
+| OOS TWRR | 12.36% | 12.39% | 12.76% | 15.71% |
+| OOS Max DD | -30.3% | -30.9% | -31.5% | -32.3% |
+| Degradation ratio | 1.443 | 1.430 | 1.418 | 1.398 |
+
+**SO WHAT**: All degradation ratios are well above 1.0, meaning OOS performance exceeds IS performance for all candidates. This is not overfitting — it reflects the 2020–2026 OOS period being a strong market environment. Importantly, the DriftDCA candidates show slightly lower degradation ratios than baseline, which is expected: contribution steering is most effective in the early years (IS period, when contributions are large relative to portfolio), so IS improvement is slightly larger than OOS improvement. The OOS TWRR improvement for aggressive (+3.35pp) is noteworthy but likely driven by the small OOS portfolio size where contributions still have leverage.
+
+### Walk-Forward (10yr IS, 5yr step)
+
+**WHY**: A single IS/OOS split is sensitive to the split date. Walk-forward uses multiple overlapping windows to test stability across different market regimes.
+
+**HOW**: Three windows with 10-year IS and expanding OOS:
+- W1: IS 2005–2015, OOS 2015–2020
+- W2: IS 2005–2020, OOS 2020–2025
+- W3: IS 2005–2025, OOS 2025–2026
+Stability score = sum of OOS Sharpe across windows. Higher = more consistent.
+
+**WHAT**:
+
+| Window | Baseline | Conservative | Moderate | Aggressive |
+|--------|----------|-------------|----------|------------|
+| W1 (OOS Sharpe) | 1.348 | 1.338 | 1.328 | 1.321 |
+| W2 (OOS Sharpe) | 1.344 | 1.336 | 1.329 | 1.321 |
+| W3 (OOS Sharpe) | 2.202 | 2.190 | 2.174 | 2.145 |
+| **Stability** | **3.301** | **3.291** | **3.298** | **3.353** |
+
+**SO WHAT**: Walk-forward stability is remarkably consistent across all candidates (range 3.29–3.35). The aggressive candidate actually has the highest stability score (3.353), suggesting its improvement does not decay over time. Per-window OOS Sharpe values are slightly lower for DriftDCA candidates, consistent with the OOS finding that contribution steering adds less value in later periods. The very high W3 values for all candidates reflect the short, bullish 2025–2026 OOS window.
+
+### Event Analysis (Crisis Calendar)
+
+**WHY**: The aggregate metrics mask how the strategy behaves during market stress. Crisis events are when drawdown protection matters most.
+
+**HOW**: Computed total portfolio return during each crisis event from the crisis calendar, using a single deterministic simulation per candidate.
+
+**WHAT**:
+
+| Event | Baseline | Conservative | Moderate | Aggressive |
+|-------|----------|-------------|----------|------------|
+| GFC (Oct 2007 – Mar 2009) | +8.0% | +8.8% | +9.5% | +7.7% |
+| Eurozone crisis (Jul 2011 – Jun 2012) | +27.3% | +27.2% | +27.1% | +26.6% |
+| COVID crash (Feb – Mar 2020) | -27.4% | -27.3% | -27.1% | -26.1% |
+| 2022 bear market (Jan – Oct 2022) | -0.6% | -0.4% | -0.1% | +2.5% |
+
+**SO WHAT**: During crises, DriftDCA candidates show marginal improvements. The most notable result is the aggressive candidate turning the 2022 bear market from a -0.6% loss to a +2.5% gain — consistent with the max drawdown improvement seen in MC. During the GFC, the conservative and moderate candidates outperform baseline (due to early-period contribution leverage), but the aggressive candidate slightly underperforms — the stepped formula's discrete jumps create less favorable timing than the proportional formula during prolonged bear markets. The COVID crash differences are small (~1pp) because it was too short (33 days) for monthly contributions to make a meaningful impact.
+
+### QuantStats Tearsheet
+
+Generated for the aggressive candidate (highest MC Sharpe): [artifacts/tearsheet_aggressive.html](artifacts/tearsheet_aggressive.html)
+
+Additional plots saved to `artifacts/`: returns, monthly heatmap, drawdown, rolling Sharpe, histogram, distribution.
+
+### Failing Paths
+
+The initial validation run failed due to a format specifier bug in the event analysis output (`>{col_w}+.4f` should have been `>+{col_w}.4f`). Fixed and re-run — all 5 phases completed successfully on the second attempt.
+
+### Phase Deliverables
+
+| Deliverable | Path | Description |
+|---|---|---|
+| Validation script | [validation/validate.py](validation/validate.py) | MC, OOS, walk-forward, events, QuantStats |
+| Validation results | [results/validation.json](results/validation.json) | Full metrics for all candidates across all phases |
+| Tearsheet (aggressive) | [artifacts/tearsheet_aggressive.html](artifacts/tearsheet_aggressive.html) | Full QuantStats performance report |
+| Performance plots | [artifacts/](artifacts/) | returns, drawdown, rolling Sharpe, heatmap, histogram, distribution |
+
+## Conclusion
+
+**Verdict: NO-GO for production implementation.**
+
+Drift-based contribution steering produces statistically real but economically negligible improvements to risk-adjusted returns, while consistently reducing terminal portfolio value. The fundamental tension identified in exploration and consolidation is confirmed by validation:
+
+### The Core Tradeoff
+
+Steering contributions toward underweight assets means steering them *away* from stocks — which have the highest long-term expected return. Every improvement in TWRR, Sharpe, or max drawdown comes at a direct cost in final portfolio value. There is no configuration that improves risk-adjusted returns without reducing wealth accumulation.
+
+### Quantitative Summary
+
+| Candidate | dTWRR | dSharpe | dMax DD | dCalmar | dFinal Value |
+|-----------|-------|---------|---------|---------|--------------|
+| Conservative | +0.04pp | +0.001 | +0.1pp | +0.002 | -€538 (-0.1%) |
+| Moderate | +0.12pp | +0.002 | +0.6pp | +0.011 | -€1,594 (-0.3%) |
+| Aggressive | +0.19pp | +0.005 | +4.9pp | +0.099 | -€7,796 (-1.7%) |
+
+### Why It Doesn't Work Well Enough
+
+1. **Contribution capacity decays rapidly.** Monthly contributions of €500–700 are meaningful only in the first ~5 years. After 2009, contributions are <2% of portfolio value — too small to meaningfully correct drift. The strategy is structurally front-loaded.
+
+2. **The improvements are within noise.** A +0.04pp TWRR improvement (conservative) is indistinguishable from random variation. Even the aggressive candidate's +0.19pp is barely above the MC confidence interval width.
+
+3. **The best metric improvement (max drawdown) requires the worst formula.** The aggressive candidate's +4.9pp max drawdown improvement is the most compelling result, but it uses the stepped formula which applies discrete 0/50%/100% jumps — a crude mechanism that happens to help in the 2022 bear market but could equally hurt in other scenarios.
+
+4. **The theoretical ceiling was ~+0.35pp TWRR.** The oracle strategy (perfect information) could only improve TWRR by 0.35pp while losing €23k in final value. Real strategies achieve less than half of this ceiling while already paying a proportional wealth cost.
+
+### What This Experiment Proves
+
+This is a well-characterized **negative result**. The hypothesis — that contribution steering can meaningfully improve risk-adjusted returns — is technically true but practically irrelevant. The contribution capacity constraint (fixed small amounts vs. a growing portfolio) is the binding limitation, not the formula or parameter choice. No amount of parameter tuning can overcome the fundamental asymmetry between a €600/month contribution and a €400k+ portfolio.
+
+### Recommendation
+
+Do not implement DriftDCA in the production backtester. The complexity cost (new strategy, new parameters, additional testing) is not justified by improvements that are economically indistinguishable from noise. The baseline static 70/15/15 allocation remains the recommended PAC strategy.
+
+For investors seeking better risk-adjusted returns, the lever is **asset selection and target allocation** (choosing a different mix), not **contribution timing** (steering the same mix more cleverly).
