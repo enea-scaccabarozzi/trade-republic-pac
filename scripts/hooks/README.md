@@ -42,8 +42,8 @@ The policy must instruct the model to respond with `verdict: PASS` or `verdict: 
 | `LLM_REVIEW_MAX_FILES` | 40 | Warn when diff exceeds this many files |
 | `LLM_REVIEW_MAX_LINES` | 3000 | Warn when diff exceeds this many lines |
 | `LLM_REVIEW_SKIP` | unset | Set to `1` to skip LLM review |
-| `LLM_REVIEW_TIMEOUT_FLASH` | 60 | Timeout (seconds) for Flash agents |
-| `LLM_REVIEW_TIMEOUT_PRO` | 120 | Timeout (seconds) for Pro agents |
+| `LLM_REVIEW_TIMEOUT_FLASH` | 120 | Timeout (seconds) for Flash agents |
+| `LLM_REVIEW_TIMEOUT_PRO` | 180 | Timeout (seconds) for Pro agents |
 
 ## Prerequisites
 

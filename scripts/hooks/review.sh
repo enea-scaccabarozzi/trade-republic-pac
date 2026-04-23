@@ -7,8 +7,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # --- Configuration (env var overrides) ---
 MAX_FILES="${LLM_REVIEW_MAX_FILES:-40}"
 MAX_LINES="${LLM_REVIEW_MAX_LINES:-3000}"
-TIMEOUT_FLASH="${LLM_REVIEW_TIMEOUT_FLASH:-60}"
-TIMEOUT_PRO="${LLM_REVIEW_TIMEOUT_PRO:-120}"
+TIMEOUT_FLASH="${LLM_REVIEW_TIMEOUT_FLASH:-120}"
+TIMEOUT_PRO="${LLM_REVIEW_TIMEOUT_PRO:-180}"
 SKIP="${LLM_REVIEW_SKIP:-0}"
 
 # --- Argument parsing ---
@@ -117,59 +117,63 @@ BLOCK
 fi
 
 # --- Agent routing ---
-declare -A AGENT_MAP
+ACTIVATE_BDD=false
+ACTIVATE_TESTING=false
+ACTIVATE_DOCUMENTATION=false
+ACTIVATE_ARCHITECTURE=false
+ACTIVATE_RESEARCH=false
+
 HAS_PRODUCTION_PY=false
 HAS_TEST_PY=false
 HAS_DOCS=false
 HAS_RESEARCH=false
 
 while IFS= read -r file; do
-  # Test files
-  if [[ "$file" =~ ^tests/ ]] || [[ "$file" =~ /tests/ ]] || [[ "$file" =~ /test_[^/]*\.py$ ]]; then
-    HAS_TEST_PY=true
-  fi
-  # Production Python (src/pac/, excluding tests and dashboard)
-  if [[ "$file" =~ ^src/pac/.*\.py$ ]] && \
-     [[ ! "$file" =~ /tests/ ]] && \
-     [[ ! "$file" =~ /test_[^/]*\.py$ ]] && \
-     [[ ! "$file" =~ ^src/pac/backtester/dashboard/ ]]; then
-    HAS_PRODUCTION_PY=true
-  fi
-  # Doc files
-  if [[ "$file" =~ ^docs/ ]] || [[ "$file" =~ README\.md$ ]] || \
-     [[ "$file" == "CHANGELOG.md" ]] || [[ "$file" == "AGENTS.md" ]]; then
-    HAS_DOCS=true
-  fi
-  # Research files
-  if [[ "$file" =~ ^research/ ]]; then
-    HAS_RESEARCH=true
-  fi
+  case "$file" in
+    tests/*|*/tests/*|*/test_*.py)
+      HAS_TEST_PY=true ;;
+  esac
+  case "$file" in
+    src/pac/backtester/dashboard/*) ;;
+    src/pac/*/tests/*|src/pac/*/test_*.py) ;;
+    src/pac/*.py|src/pac/*/*.py|src/pac/*/*/*.py|src/pac/*/*/*/*.py)
+      HAS_PRODUCTION_PY=true ;;
+  esac
+  case "$file" in
+    docs/*|*/README.md|CHANGELOG.md|AGENTS.md)
+      HAS_DOCS=true ;;
+  esac
+  case "$file" in
+    research/*)
+      HAS_RESEARCH=true ;;
+  esac
 done <<< "$DIFF"
 
-# Production code triggers bdd, testing, documentation, architecture
 if [[ "$HAS_PRODUCTION_PY" == "true" ]]; then
-  AGENT_MAP[bdd]=1
-  AGENT_MAP[testing]=1
-  AGENT_MAP[documentation]=1
-  AGENT_MAP[architecture]=1
+  ACTIVATE_BDD=true
+  ACTIVATE_TESTING=true
+  ACTIVATE_DOCUMENTATION=true
+  ACTIVATE_ARCHITECTURE=true
 fi
 
-# Test files also trigger testing
 if [[ "$HAS_TEST_PY" == "true" ]]; then
-  AGENT_MAP[testing]=1
+  ACTIVATE_TESTING=true
 fi
 
-# Doc files also trigger documentation
 if [[ "$HAS_DOCS" == "true" ]]; then
-  AGENT_MAP[documentation]=1
+  ACTIVATE_DOCUMENTATION=true
 fi
 
-# Research files trigger research
 if [[ "$HAS_RESEARCH" == "true" ]]; then
-  AGENT_MAP[research]=1
+  ACTIVATE_RESEARCH=true
 fi
 
-AGENTS=("${!AGENT_MAP[@]}")
+AGENTS=()
+$ACTIVATE_BDD && AGENTS+=("bdd")
+$ACTIVATE_TESTING && AGENTS+=("testing")
+$ACTIVATE_DOCUMENTATION && AGENTS+=("documentation")
+$ACTIVATE_ARCHITECTURE && AGENTS+=("architecture")
+$ACTIVATE_RESEARCH && AGENTS+=("research")
 
 if [[ ${#AGENTS[@]} -eq 0 ]]; then
   echo "LLM review: no agents activated."
@@ -203,13 +207,21 @@ ${DIFF_CONTENT}
 PROMPT_EOF
 
   (
-    timeout "$TIMEOUT" gemini \
+    gemini \
       -p "$(cat "$PROMPT_FILE")" \
       -m "$MODEL" \
       --admin-policy "$POLICY_FILE" \
       --output-format text \
       --yolo \
-      2>/dev/null > "$OUTPUT_FILE" || echo "verdict: TIMEOUT" > "$OUTPUT_FILE"
+      2>/dev/null > "$OUTPUT_FILE" &
+    GEMINI_PID=$!
+    (sleep "$TIMEOUT" && kill "$GEMINI_PID" 2>/dev/null) &
+    TIMER_PID=$!
+    if wait "$GEMINI_PID" 2>/dev/null; then
+      kill "$TIMER_PID" 2>/dev/null
+    else
+      echo "verdict: TIMEOUT" > "$OUTPUT_FILE"
+    fi
   ) &
   PIDS+=($!)
 done
@@ -258,12 +270,12 @@ BLOCK
 for i in "${!FAILURES[@]}"; do
   agent="${FAILURES[$i]}"
   output="${FAILURE_OUTPUTS[$i]}"
-  # Extract findings (everything except the verdict line)
+  label=$(echo "$agent" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
   findings=$(echo "$output" | grep -vi "verdict:" || echo "$output")
 
   cat >&2 <<BLOCK
 
-  ── ${agent^} ─────────────────────────────────────────────────
+  ── ${label} ─────────────────────────────────────────────────
 $(echo "$findings" | sed 's/^/  /')
 BLOCK
 done
