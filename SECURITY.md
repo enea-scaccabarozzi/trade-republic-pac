@@ -4,10 +4,10 @@
 
 Only the latest release receives security updates.
 
-| Version | Supported          |
+| Version | Supported |
 | ------- | ------------------ |
-| latest  | :white_check_mark: |
-| older   | :x:                |
+| latest | :white_check_mark: |
+| older | :x: |
 
 ## Reporting a Vulnerability
 
@@ -51,9 +51,9 @@ Please include as much detail as possible:
 This project follows **coordinated disclosure**:
 
 1. Reporter submits a private advisory.
-2. Maintainer acknowledges within 48 hours.
-3. Maintainer investigates and develops a fix within 90 days.
-4. Fix is released and the advisory is published simultaneously.
+1. Maintainer acknowledges within 48 hours.
+1. Maintainer investigates and develops a fix within 90 days.
+1. Fix is released and the advisory is published simultaneously.
 
 If a fix cannot be delivered within 90 days, the maintainer will communicate a revised timeline to the reporter before the deadline.
 

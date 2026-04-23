@@ -4,11 +4,11 @@ Shared Pydantic domain models — portfolio snapshots, positions, allocations, s
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                                                                               |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | None (foundation layer — no internal `pac` imports)                                                                                                                                   |
+| Depends on | None (foundation layer — no internal `pac` imports) |
 | Consumed by | All other submodules — [`analysis`](../analysis/), [`rules`](../rules/), [`delivery`](../delivery/), [`templates`](../templates/), [`orchestrator`](../orchestrator/), [`tr`](../tr/) |
-| Boundary    | Domain data structures only — no I/O, no business logic                                                                                                                               |
+| Boundary | Domain data structures only — no I/O, no business logic |
 
 ## Dependencies
 
@@ -16,16 +16,16 @@ This module has no internal `pac` imports — it is the foundation layer. All ot
 
 ## Key Components
 
-| Component           | File           | Description                                                                     |
+| Component | File | Description |
 | ------------------- | -------------- | ------------------------------------------------------------------------------- |
-| `Position`          | `portfolio.py` | Single portfolio position (ISIN, name, quantity, price, market value, asset ID) |
-| `Allocation`        | `portfolio.py` | Actual vs target percentage for a single asset class                            |
-| `PortfolioSnapshot` | `portfolio.py` | Point-in-time portfolio state with positions, cash, and computed `total_value`  |
-| `SavingsPlan`       | `portfolio.py` | A configured savings plan (PAC) with ISIN, amount, and interval                 |
-| `SignalSeverity`    | `signals.py`   | `StrEnum`: `INFO`, `WARNING`, `CRITICAL`                                        |
-| `ActionType`        | `signals.py`   | `StrEnum`: `BUY`, `SELL`, `HOLD`                                                |
-| `Signal`            | `signals.py`   | Alert produced by a signal rule (name, severity, message, metadata)             |
-| `RebalanceAction`   | `signals.py`   | Recommended buy/sell/hold action for an asset                                   |
+| `Position` | `portfolio.py` | Single portfolio position (ISIN, name, quantity, price, market value, asset ID) |
+| `Allocation` | `portfolio.py` | Actual vs target percentage for a single asset class |
+| `PortfolioSnapshot` | `portfolio.py` | Point-in-time portfolio state with positions, cash, and computed `total_value` |
+| `SavingsPlan` | `portfolio.py` | A configured savings plan (PAC) with ISIN, amount, and interval |
+| `SignalSeverity` | `signals.py` | `StrEnum`: `INFO`, `WARNING`, `CRITICAL` |
+| `ActionType` | `signals.py` | `StrEnum`: `BUY`, `SELL`, `HOLD` |
+| `Signal` | `signals.py` | Alert produced by a signal rule (name, severity, message, metadata) |
+| `RebalanceAction` | `signals.py` | Recommended buy/sell/hold action for an asset |
 
 ## Usage
 
@@ -59,10 +59,10 @@ signal = Signal(
 
 ### `PortfolioSnapshot` Computed Fields
 
-| Field/Method    | Returns                 | Description                                 |
+| Field/Method | Returns | Description |
 | --------------- | ----------------------- | ------------------------------------------- |
-| `total_value`   | `Decimal`               | Sum of all position market values plus cash |
-| `allocations()` | `dict[str, Allocation]` | Per-asset actual percentage of total value  |
+| `total_value` | `Decimal` | Sum of all position market values plus cash |
+| `allocations()` | `dict[str, Allocation]` | Per-asset actual percentage of total value |
 
 ## Commands
 

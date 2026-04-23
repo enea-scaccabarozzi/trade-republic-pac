@@ -1,0 +1,12 @@
+{
+  "plugins": {
+    "md013": {
+      "line_length": 700,
+      "code_block_line_length": 700,
+      "heading_line_length": 700
+    },
+    "md024": {
+      "siblings_only": true
+    }
+  }
+}

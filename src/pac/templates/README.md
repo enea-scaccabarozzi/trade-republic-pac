@@ -4,11 +4,11 @@ Format-agnostic message rendering via Jinja2 `SandboxedEnvironment` and pluggabl
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                   |
+| Aspect | Details |
 | ----------- | ----------------------------------------------------------------------------------------- |
-| Depends on  | [`delivery`](../delivery/) (`RenderedMessage`), [`models`](../models/) (`SignalSeverity`) |
-| Consumed by | [`orchestrator`](../orchestrator/) (calls `render()` in the dispatch pipeline)            |
-| Boundary    | Template loading, adapter-injected formatting, rendered message production                |
+| Depends on | [`delivery`](../delivery/) (`RenderedMessage`), [`models`](../models/) (`SignalSeverity`) |
+| Consumed by | [`orchestrator`](../orchestrator/) (calls `render()` in the dispatch pipeline) |
+| Boundary | Template loading, adapter-injected formatting, rendered message production |
 
 ## Dependencies
 
@@ -21,32 +21,32 @@ Format-agnostic message rendering via Jinja2 `SandboxedEnvironment` and pluggabl
 
 ## Key Components
 
-| Component           | File                      | Description                                                              |
+| Component | File | Description |
 | ------------------- | ------------------------- | ------------------------------------------------------------------------ |
-| `TemplateEngine`    | `engine.py`               | Loads `.j2` templates, injects adapter methods as Jinja2 globals         |
-| `FormatAdapter`     | `adapters/base.py`        | ABC defining the formatting contract (`bold`, `escape`, `literal`, etc.) |
-| `MarkdownV2Adapter` | `adapters/markdown_v2.py` | Telegram MarkdownV2 escaping and formatting                              |
-| `PlainTextAdapter`  | `adapters/plain_text.py`  | No-markup plain-text fallback                                            |
+| `TemplateEngine` | `engine.py` | Loads `.j2` templates, injects adapter methods as Jinja2 globals |
+| `FormatAdapter` | `adapters/base.py` | ABC defining the formatting contract (`bold`, `escape`, `literal`, etc.) |
+| `MarkdownV2Adapter` | `adapters/markdown_v2.py` | Telegram MarkdownV2 escaping and formatting |
+| `PlainTextAdapter` | `adapters/plain_text.py` | No-markup plain-text fallback |
 
 ### Built-in Templates
 
-| Template         | File                          | Expected Data                     |
+| Template | File | Expected Data |
 | ---------------- | ----------------------------- | --------------------------------- |
-| Threshold alert  | `builtin/threshold_alert.j2`  | `signal`, `deviations` (optional) |
-| Cycle alert      | `builtin/cycle_alert.j2`      | `signal`                          |
-| PAC plan         | `builtin/pac_plan.j2`         | `plan`                            |
-| Portfolio status | `builtin/portfolio_status.j2` | `deviations`, `snapshot`          |
+| Threshold alert | `builtin/threshold_alert.j2` | `signal`, `deviations` (optional) |
+| Cycle alert | `builtin/cycle_alert.j2` | `signal` |
+| PAC plan | `builtin/pac_plan.j2` | `plan` |
+| Portfolio status | `builtin/portfolio_status.j2` | `deviations`, `snapshot` |
 
 ## Configuration
 
 `TemplateEngine` loads templates from a directory (default: `builtin/`). Custom filters are registered at init:
 
-| Filter      | Purpose                            | Example Output |
+| Filter | Purpose | Example Output |
 | ----------- | ---------------------------------- | -------------- |
-| `datefmt`   | Format `datetime` objects          | `2026-04-04`   |
-| `numberfmt` | Format numbers to N decimal places | `70.15`        |
-| `pctfmt`    | Percentage string                  | `70.0%`        |
-| `eurfmt`    | Euro currency string               | `€500.00`      |
+| `datefmt` | Format `datetime` objects | `2026-04-04` |
+| `numberfmt` | Format numbers to N decimal places | `70.15` |
+| `pctfmt` | Percentage string | `70.0%` |
+| `eurfmt` | Euro currency string | `€500.00` |
 
 Data keys must not shadow reserved adapter method names (`bold`, `escape`, `literal`, etc.) — the engine raises `ValueError` on collision.
 

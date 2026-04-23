@@ -6,30 +6,9 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # --- Configuration (env var overrides) ---
 MAX_FILES="${LLM_REVIEW_MAX_FILES:-40}"
-MAX_LINES="${LLM_REVIEW_MAX_LINES:-3000}"
-TIMEOUT_FLASH="${LLM_REVIEW_TIMEOUT_FLASH:-120}"
-TIMEOUT_PRO="${LLM_REVIEW_TIMEOUT_PRO:-180}"
+MAX_LINES="${LLM_REVIEW_MAX_LINES:-4000}"
+TIMEOUT="${LLM_REVIEW_TIMEOUT:-90}"
 SKIP="${LLM_REVIEW_SKIP:-0}"
-
-# --- Argument parsing ---
-MODE=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --mode)
-      MODE="$2"
-      shift 2
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      exit 1
-      ;;
-  esac
-done
-
-if [[ "$MODE" != "commit" && "$MODE" != "push" ]]; then
-  echo "Usage: review.sh --mode commit|push" >&2
-  exit 1
-fi
 
 # --- Skip check ---
 if [[ "$SKIP" == "1" ]]; then
@@ -43,77 +22,42 @@ if ! command -v gemini &>/dev/null; then
   exit 0
 fi
 
-# --- Model selection ---
-if [[ "$MODE" == "commit" ]]; then
-  MODEL="gemini-2.5-flash"
-  TIMEOUT="$TIMEOUT_FLASH"
-else
-  MODEL="gemini-2.5-pro"
-  TIMEOUT="$TIMEOUT_PRO"
-fi
-
 # --- Relevant extensions filter ---
 EXTENSIONS_PATTERN='\.py$|\.md$|\.feature$|\.toml$|\.yaml$|\.yml$'
 DASHBOARD_EXCLUDE='src/pac/backtester/dashboard/'
 
 # --- Compute diff ---
-if [[ "$MODE" == "commit" ]]; then
-  DIFF=$(git diff --cached --name-only | grep -E "$EXTENSIONS_PATTERN" | grep -v "$DASHBOARD_EXCLUDE" || true)
-  DIFF_CONTENT=$(git diff --cached -- $(echo "$DIFF" | tr '\n' ' ') 2>/dev/null || true)
-else
-  BASE_BRANCH=$(git rev-parse --verify main 2>/dev/null || git rev-parse --verify master 2>/dev/null || echo "HEAD~10")
-  DIFF=$(git diff "$BASE_BRANCH"...HEAD --name-only | grep -E "$EXTENSIONS_PATTERN" | grep -v "$DASHBOARD_EXCLUDE" || true)
-  DIFF_CONTENT=$(git diff "$BASE_BRANCH"...HEAD -- $(echo "$DIFF" | tr '\n' ' ') 2>/dev/null || true)
-fi
+CHANGED_FILES=$(git diff --cached --name-only | grep -E "$EXTENSIONS_PATTERN" | grep -v "$DASHBOARD_EXCLUDE" || true)
 
-# --- No relevant files check ---
-if [[ -z "$DIFF" ]]; then
+if [[ -z "$CHANGED_FILES" ]]; then
   echo "LLM review: no reviewable changes."
   exit 0
 fi
 
-FILE_COUNT=$(echo "$DIFF" | wc -l | tr -d ' ')
-LINE_COUNT=$(echo "$DIFF_CONTENT" | wc -l | tr -d ' ')
+FILE_COUNT=$(echo "$CHANGED_FILES" | wc -l | tr -d ' ')
+FULL_DIFF=$(git diff --cached -- $(echo "$CHANGED_FILES" | tr '\n' ' ') 2>/dev/null || true)
+LINE_COUNT=$(echo "$FULL_DIFF" | wc -l | tr -d ' ')
 
 # --- Context overflow check ---
 if [[ "$FILE_COUNT" -gt "$MAX_FILES" || "$LINE_COUNT" -gt "$MAX_LINES" ]]; then
-  if [[ "$MODE" == "push" ]]; then
-    cat >&2 <<'BLOCK'
+  cat >&2 <<BLOCK
 ══════════════════════════════════════════════════════════════════
   ⚠  CONTEXT LIMIT EXCEEDED
-BLOCK
-    echo "  ${FILE_COUNT} files changed, ~${LINE_COUNT} lines of diff." >&2
-    cat >&2 <<'BLOCK'
-  Reviews beyond this threshold produce incomplete analysis
-  and silently miss violations.
+  ${FILE_COUNT} files changed, ~${LINE_COUNT} lines of diff.
+  Reviews beyond this threshold produce incomplete analysis.
 
-  PUSH BLOCKED. Split your changes into smaller, focused
-  commits and pushes before proceeding. A review of this
-  size cannot be trusted.
+  COMMIT BLOCKED. Split your changes into smaller, focused
+  commits before proceeding.
+  To skip: LLM_REVIEW_SKIP=1 git commit ...
 ══════════════════════════════════════════════════════════════════
 BLOCK
-    exit 1
-  else
-    cat >&2 <<'BLOCK'
-══════════════════════════════════════════════════════════════════
-  ⚠  CONTEXT LIMIT EXCEEDED
-BLOCK
-    echo "  ${FILE_COUNT} files changed, ~${LINE_COUNT} lines of diff." >&2
-    cat >&2 <<'BLOCK'
-  Reviews beyond this threshold produce incomplete analysis
-  and silently miss violations.
+  exit 1
+fi
 
-  Split your changes into smaller, focused commits.
-  Proceed with reduced review confidence? [y/N]
-══════════════════════════════════════════════════════════════════
-BLOCK
-    read -r -n 1 OVERFLOW_REPLY </dev/tty 2>/dev/null || OVERFLOW_REPLY="n"
-    echo >&2
-    if [[ ! "$OVERFLOW_REPLY" =~ ^[Yy]$ ]]; then
-      echo "LLM review: skipped (context limit exceeded)."
-      exit 0
-    fi
-  fi
+# --- Commit message ---
+COMMIT_MSG=""
+if [[ -f "$PROJECT_ROOT/.git/COMMIT_EDITMSG" ]]; then
+  COMMIT_MSG=$(head -1 "$PROJECT_ROOT/.git/COMMIT_EDITMSG")
 fi
 
 # --- Agent routing ---
@@ -147,13 +91,13 @@ while IFS= read -r file; do
     research/*)
       HAS_RESEARCH=true ;;
   esac
-done <<< "$DIFF"
+done <<< "$CHANGED_FILES"
 
 if [[ "$HAS_PRODUCTION_PY" == "true" ]]; then
   ACTIVATE_BDD=true
   ACTIVATE_TESTING=true
-  ACTIVATE_DOCUMENTATION=true
   ACTIVATE_ARCHITECTURE=true
+  ACTIVATE_DOCUMENTATION=true
 fi
 
 if [[ "$HAS_TEST_PY" == "true" ]]; then
@@ -184,6 +128,8 @@ fi
 TMPDIR_REVIEW=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_REVIEW"' EXIT
 
+echo "LLM review: running ${#AGENTS[@]} agent(s) [${AGENTS[*]}]..." >&2
+
 PIDS=()
 for agent in "${AGENTS[@]}"; do
   POLICY_FILE="$SCRIPT_DIR/policies/${agent}.md"
@@ -196,24 +142,30 @@ for agent in "${AGENTS[@]}"; do
   PROMPT_FILE="$TMPDIR_REVIEW/${agent}.prompt"
 
   cat > "$PROMPT_FILE" <<PROMPT_EOF
-Review the following diff for violations.
+Review the following diff for violations of your policy.
+
+Commit message: ${COMMIT_MSG}
 
 Changed files:
-${DIFF}
+${CHANGED_FILES}
 
 --- DIFF START ---
-${DIFF_CONTENT}
+${FULL_DIFF}
 --- DIFF END ---
+
+Your response MUST begin with exactly one of:
+verdict: PASS
+verdict: FAIL
+Then explain your reasoning briefly.
 PROMPT_EOF
 
   (
     gemini \
       -p "$(cat "$PROMPT_FILE")" \
-      -m "$MODEL" \
+      -m gemini-2.5-flash \
       --admin-policy "$POLICY_FILE" \
       --output-format text \
-      --yolo \
-      2>/dev/null > "$OUTPUT_FILE" &
+      </dev/null 2>/dev/null > "$OUTPUT_FILE" &
     GEMINI_PID=$!
     (sleep "$TIMEOUT" && kill "$GEMINI_PID" 2>/dev/null) &
     TIMER_PID=$!
@@ -231,7 +183,7 @@ for pid in "${PIDS[@]}"; do
   wait "$pid" 2>/dev/null || true
 done
 
-# --- Result parsing and output ---
+# --- Result parsing ---
 AGENT_ORDER=("bdd" "testing" "documentation" "architecture" "research")
 TOTAL=0
 PASSED=0
@@ -244,14 +196,19 @@ for agent in "${AGENT_ORDER[@]}"; do
   TOTAL=$((TOTAL + 1))
   CONTENT=$(cat "$OUTPUT_FILE")
 
-  if echo "$CONTENT" | grep -qi "verdict: *PASS"; then
+  VERDICT_REGION=$(echo "$CONTENT" | head -5)
+
+  if echo "$VERDICT_REGION" | grep -qiE 'verdict\s*:\s*pass'; then
     PASSED=$((PASSED + 1))
   elif echo "$CONTENT" | grep -qi "verdict: *TIMEOUT"; then
     PASSED=$((PASSED + 1))
     echo "LLM review: ${agent} agent timed out (treated as pass)." >&2
-  else
+  elif echo "$VERDICT_REGION" | grep -qiE 'verdict\s*:\s*fail'; then
     FAILURES+=("$agent")
     FAILURE_OUTPUTS+=("$CONTENT")
+  else
+    FAILURES+=("$agent")
+    FAILURE_OUTPUTS+=("⚠ Could not parse verdict. Raw output:\n${CONTENT}")
   fi
 done
 
@@ -271,7 +228,7 @@ for i in "${!FAILURES[@]}"; do
   agent="${FAILURES[$i]}"
   output="${FAILURE_OUTPUTS[$i]}"
   label=$(echo "$agent" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-  findings=$(echo "$output" | grep -vi "verdict:" || echo "$output")
+  findings=$(echo -e "$output" | grep -vi "verdict:" || echo -e "$output")
 
   cat >&2 <<BLOCK
 
@@ -280,33 +237,13 @@ $(echo "$findings" | sed 's/^/  /')
 BLOCK
 done
 
-if [[ "$MODE" == "commit" ]]; then
-  cat >&2 <<'BLOCK'
+cat >&2 <<'BLOCK'
 
   ────────────────────────────────────────────────────────────
   ACTION REQUIRED: Fix the violations above and recommit.
+  To skip LLM review: LLM_REVIEW_SKIP=1 git commit ...
   Override only if you have reviewed each violation and are
-  certain it does not apply. Ignoring valid findings degrades
-  codebase quality for every future contributor.
-
-  Commit anyway? [y/N]
+  certain it does not apply.
 ══════════════════════════════════════════════════════════════════
 BLOCK
-  read -r -n 1 REPLY </dev/tty 2>/dev/null || REPLY="n"
-  echo >&2
-  if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-    exit 0
-  else
-    exit 1
-  fi
-else
-  cat >&2 <<'BLOCK'
-
-  ────────────────────────────────────────────────────────────
-  PUSH BLOCKED. Fix the violations above, recommit, and
-  push again. This review is not optional — violations must
-  be resolved before code reaches the remote.
-══════════════════════════════════════════════════════════════════
-BLOCK
-  exit 1
-fi
+exit 1

@@ -5,30 +5,30 @@ This guide covers the project's approach to testing: black-box testing, dependen
 ## Core Principles
 
 1. **Black-box testing** — test observable behavior, never internals. Verify what a function returns or what side effects it produces, not how it achieves them.
-2. **DI-first** — all external dependencies are injected and faked at the boundary. The module under test uses real code; only its collaborators are faked.
-3. **No mocking internals under test** — never patch private methods or internal state of the thing you're testing.
+1. **DI-first** — all external dependencies are injected and faked at the boundary. The module under test uses real code; only its collaborators are faked.
+1. **No mocking internals under test** — never patch private methods or internal state of the thing you're testing.
 
 ## Decision Matrix: What to Test and How
 
-| Change Type            | Approach                            | Example                                                  |
+| Change Type | Approach | Example |
 | ---------------------- | ----------------------------------- | -------------------------------------------------------- |
-| New signal rule        | BDD feature + unit edge cases       | `threshold_rule.feature` + `test_signals.py`             |
-| New delivery channel   | BDD feature + lifecycle tests       | `telegram_delivery.feature` + `test_telegram_channel.py` |
-| Config validation      | BDD feature (comprehensive)         | `config_loading.feature` (15 scenarios)                  |
-| Analysis pure function | Unit tests (edge cases, boundaries) | `test_deviation.py`, `test_rebalance.py`                 |
-| Template rendering     | BDD feature                         | `template_rendering.feature`, `format_adapters.feature`  |
-| Auto-discovery         | BDD feature                         | `rule_discovery.feature`, `channel_discovery.feature`    |
-| HTTP endpoints         | Integration tests                   | `tests/test_app.py`                                      |
-| Orchestrator pipeline  | BDD feature + unit tests            | `signal_dispatch.feature` + `test_orchestrator.py`       |
+| New signal rule | BDD feature + unit edge cases | `threshold_rule.feature` + `test_signals.py` |
+| New delivery channel | BDD feature + lifecycle tests | `telegram_delivery.feature` + `test_telegram_channel.py` |
+| Config validation | BDD feature (comprehensive) | `config_loading.feature` (15 scenarios) |
+| Analysis pure function | Unit tests (edge cases, boundaries) | `test_deviation.py`, `test_rebalance.py` |
+| Template rendering | BDD feature | `template_rendering.feature`, `format_adapters.feature` |
+| Auto-discovery | BDD feature | `rule_discovery.feature`, `channel_discovery.feature` |
+| HTTP endpoints | Integration tests | `tests/test_app.py` |
+| Orchestrator pipeline | BDD feature + unit tests | `signal_dispatch.feature` + `test_orchestrator.py` |
 
 ### When to Add Tests Beyond BDD
 
 BDD scenarios cover the happy path and key error paths. Add unit tests when:
 
 1. **Edge cases** — empty portfolio, zero budget, single asset, all assets overweight
-2. **Boundary values** — deviation exactly at threshold, budget rounding to cents
-3. **Error handling** — specific exception types, error messages
-4. **Parameterized math** — analysis functions with many numeric input combinations
+1. **Boundary values** — deviation exactly at threshold, budget rounding to cents
+1. **Error handling** — specific exception types, error messages
+1. **Parameterized math** — analysis functions with many numeric input combinations
 
 Real example: `test_deviation.py` has unit tests for cash-in-denominator edge cases that would be awkward as Gherkin scenarios because they test numeric precision.
 
@@ -164,16 +164,16 @@ def backtest_config() -> BacktestConfig:
 
 ## Mocking Boundaries
 
-| Boundary                 | Mock? | How                                                    | Example File                              |
+| Boundary | Mock? | How | Example File |
 | ------------------------ | ----- | ------------------------------------------------------ | ----------------------------------------- |
-| TR WebSocket API         | ✅ Yes | Patch `tr_session` in orchestrator                     | `orchestrator/tests/test_orchestrator.py` |
-| Telegram Bot API         | ✅ Yes | Patch PTB `Application.bot.send_message`               | `delivery/tests/test_telegram_channel.py` |
-| Filesystem (config YAML) | ✅ Yes | Write temp YAML files via `tmp_path` fixture           | `config/tests/test_config_loading_bdd.py` |
-| Environment variables    | ✅ Yes | `monkeypatch.setenv()` / `monkeypatch.delenv()`        | `config/tests/test_config_loading_bdd.py` |
-| Module under test        | ❌ No  | Use real implementation                                | —                                         |
-| Pydantic validation      | ❌ No  | Use real model — faking validators hides bugs          | —                                         |
-| Internal helpers         | ❌ No  | Part of the module under test                          | —                                         |
-| Other submodules (rules) | ❌ No  | Pass real DeviationReport fixtures, not mocked reports | `rules/tests/conftest.py`                 |
+| TR WebSocket API | ✅ Yes | Patch `tr_session` in orchestrator | `orchestrator/tests/test_orchestrator.py` |
+| Telegram Bot API | ✅ Yes | Patch PTB `Application.bot.send_message` | `delivery/tests/test_telegram_channel.py` |
+| Filesystem (config YAML) | ✅ Yes | Write temp YAML files via `tmp_path` fixture | `config/tests/test_config_loading_bdd.py` |
+| Environment variables | ✅ Yes | `monkeypatch.setenv()` / `monkeypatch.delenv()` | `config/tests/test_config_loading_bdd.py` |
+| Module under test | ❌ No | Use real implementation | — |
+| Pydantic validation | ❌ No | Use real model — faking validators hides bugs | — |
+| Internal helpers | ❌ No | Part of the module under test | — |
+| Other submodules (rules) | ❌ No | Pass real DeviationReport fixtures, not mocked reports | `rules/tests/conftest.py` |
 
 **Anti-pattern:** "Don't mock the `SignalRegistry` to test `ThresholdDeviationRule`." Create a real `DeviationReport` fixture and pass it to `rule.evaluate()`.
 
@@ -181,15 +181,15 @@ def backtest_config() -> BacktestConfig:
 
 ## Test Organization
 
-| Location                                    | Contains                                       |
+| Location | Contains |
 | ------------------------------------------- | ---------------------------------------------- |
-| `src/pac/<module>/tests/`                   | Co-located module tests                        |
-| `src/pac/<module>/tests/conftest.py`        | Module-specific fixtures                       |
-| `src/pac/<module>/tests/test_<name>_bdd.py` | BDD step definitions                           |
-| `src/pac/<module>/tests/test_<name>.py`     | Unit / edge-case tests                         |
-| `tests/conftest.py`                         | Shared fixtures (`make_settings()`, snapshots) |
-| `tests/test_app.py`                         | Integration tests for HTTP endpoints           |
-| `tests/test_scaffold_rule.py`               | DX script tests                                |
+| `src/pac/<module>/tests/` | Co-located module tests |
+| `src/pac/<module>/tests/conftest.py` | Module-specific fixtures |
+| `src/pac/<module>/tests/test_<name>_bdd.py` | BDD step definitions |
+| `src/pac/<module>/tests/test_<name>.py` | Unit / edge-case tests |
+| `tests/conftest.py` | Shared fixtures (`make_settings()`, snapshots) |
+| `tests/test_app.py` | Integration tests for HTTP endpoints |
+| `tests/test_scaffold_rule.py` | DX script tests |
 
 ## Commands
 

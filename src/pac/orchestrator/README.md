@@ -4,11 +4,11 @@ Framework-agnostic signal dispatch pipeline. Wires config, rules, templates, and
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                                                                                                                                                                                                |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Depends on  | [`config`](../config/) (`Settings`), [`rules`](../rules/) (`SignalRegistry`), [`templates`](../templates/) (`TemplateEngine`, `FormatAdapter`), [`delivery`](../delivery/) (`DeliveryChannel`), [`analysis`](../analysis/) (`calculate_deviations`, `compute_pac_plan`), [`tr`](../tr/) (`tr_session`) |
-| Consumed by | [`app.py`](../app.py) (HTTP adapter), interactive channel handlers (e.g. Telegram `/rebalance`)                                                                                                                                                                                                        |
-| Boundary    | Signal dispatch coordination, lifecycle management, config-to-component wiring                                                                                                                                                                                                                         |
+| Depends on | [`config`](../config/) (`Settings`), [`rules`](../rules/) (`SignalRegistry`), [`templates`](../templates/) (`TemplateEngine`, `FormatAdapter`), [`delivery`](../delivery/) (`DeliveryChannel`), [`analysis`](../analysis/) (`calculate_deviations`, `compute_pac_plan`), [`tr`](../tr/) (`tr_session`) |
+| Consumed by | [`app.py`](../app.py) (HTTP adapter), interactive channel handlers (e.g. Telegram `/rebalance`) |
+| Boundary | Signal dispatch coordination, lifecycle management, config-to-component wiring |
 
 ## Dependencies
 
@@ -26,26 +26,26 @@ Framework-agnostic signal dispatch pipeline. Wires config, rules, templates, and
 
 ## Key Components
 
-| Component                | File              | Description                                                          |
+| Component | File | Description |
 | ------------------------ | ----------------- | -------------------------------------------------------------------- |
-| `Orchestrator`           | `orchestrator.py` | Central coordinator — holds registry, channels, engine, and adapters |
-| `from_settings()`        | `orchestrator.py` | Factory: discovers rules/channels, validates config cross-references |
-| `dispatch_signal()`      | `orchestrator.py` | Full pipeline: fetch portfolio → evaluate → render → send            |
-| `evaluate_signal()`      | `orchestrator.py` | Evaluate-only (no send) — used by interactive handlers               |
-| `get_portfolio_status()` | `orchestrator.py` | Fetch portfolio + compute deviations — used by `/status`             |
-| `compute_pac_plan()`     | `orchestrator.py` | PAC redistribution from signal params — used by `/redistribute`      |
-| `DispatchResult`         | `orchestrator.py` | Pydantic result model: `signal_name`, `signal_count`, `delivered`    |
-| `SignalNotFoundError`    | `orchestrator.py` | Raised when signal name is not in config                             |
+| `Orchestrator` | `orchestrator.py` | Central coordinator — holds registry, channels, engine, and adapters |
+| `from_settings()` | `orchestrator.py` | Factory: discovers rules/channels, validates config cross-references |
+| `dispatch_signal()` | `orchestrator.py` | Full pipeline: fetch portfolio → evaluate → render → send |
+| `evaluate_signal()` | `orchestrator.py` | Evaluate-only (no send) — used by interactive handlers |
+| `get_portfolio_status()` | `orchestrator.py` | Fetch portfolio + compute deviations — used by `/status` |
+| `compute_pac_plan()` | `orchestrator.py` | PAC redistribution from signal params — used by `/redistribute` |
+| `DispatchResult` | `orchestrator.py` | Pydantic result model: `signal_name`, `signal_count`, `delivered` |
+| `SignalNotFoundError` | `orchestrator.py` | Raised when signal name is not in config |
 
 ## Configuration
 
 `Orchestrator.from_settings()` performs cross-validation at construction time (no network calls):
 
 1. Discovers rules via `discover_rules()` and registers them in `SignalRegistry`
-2. Discovers channels via `discover_channels()` and instantiates with typed config
-3. Builds a `TemplateEngine` and discovers `FormatAdapter` subclasses
-4. Validates every signal config references a known rule, channel(s), and template
-5. Cross-validates that each channel's `supported_formats` has a matching adapter
+1. Discovers channels via `discover_channels()` and instantiates with typed config
+1. Builds a `TemplateEngine` and discovers `FormatAdapter` subclasses
+1. Validates every signal config references a known rule, channel(s), and template
+1. Cross-validates that each channel's `supported_formats` has a matching adapter
 
 ## Usage
 

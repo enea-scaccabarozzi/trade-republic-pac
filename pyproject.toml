@@ -47,6 +47,8 @@ dev = [
     "types-pyyaml>=6.0.12.20250915",
     "typer[all]>=0.12",
     "telethon>=1.36",
+    "mdformat>=0.7",
+    "pymarkdownlnt>=0.9",
 ]
 
 [build-system]

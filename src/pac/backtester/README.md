@@ -11,28 +11,28 @@ that translation.
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                                                              |
+| Aspect | Details |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | [`analysis`](../analysis/) (deviation), [`rules`](../rules/) (signal evaluation), [`models`](../models/) (portfolio/signal types), [`config`](../config/) (Settings) |
-| Consumed by | CLI only (`just backtest`) — standalone module, not wired into the main `app.py`                                                                                     |
-| Boundary    | Network (yfinance fetch), filesystem (`.pac/backtests/` write, cache read/write), pure computation                                                                   |
+| Depends on | [`analysis`](../analysis/) (deviation), [`rules`](../rules/) (signal evaluation), [`models`](../models/) (portfolio/signal types), [`config`](../config/) (Settings) |
+| Consumed by | CLI only (`just backtest`) — standalone module, not wired into the main `app.py` |
+| Boundary | Network (yfinance fetch), filesystem (`.pac/backtests/` write, cache read/write), pure computation |
 
 ## Submodules
 
-| Submodule  | Path                         | Description                                     |
+| Submodule | Path | Description |
 | ---------- | ---------------------------- | ----------------------------------------------- |
-| Data       | [`data/`](data/)             | yfinance wrapper + filesystem JSON cache        |
-| Engine     | [`engine/`](engine/)         | Monte Carlo event loop, portfolio state machine |
-| Strategies | [`strategies/`](strategies/) | BacktestStrategy ABC + builtin strategies       |
-| Metrics    | [`metrics/`](metrics/)       | quantstats wrapper, benchmark comparison        |
-| Results    | [`results/`](results/)       | JSON persistence to `.pac/backtests/`           |
-| Dashboard  | [`dashboard/`](dashboard/)   | Interactive web UI for results exploration      |
+| Data | [`data/`](data/) | yfinance wrapper + filesystem JSON cache |
+| Engine | [`engine/`](engine/) | Monte Carlo event loop, portfolio state machine |
+| Strategies | [`strategies/`](strategies/) | BacktestStrategy ABC + builtin strategies |
+| Metrics | [`metrics/`](metrics/) | quantstats wrapper, benchmark comparison |
+| Results | [`results/`](results/) | JSON persistence to `.pac/backtests/` |
+| Dashboard | [`dashboard/`](dashboard/) | Interactive web UI for results exploration |
 
 ## Architecture
 
 ### Data Flow
 
-```
+```text
 CLI (typer)
   │
   ▼ parse args / interactive prompts
@@ -73,13 +73,13 @@ BacktestReport
 
 ### Trade Republic Constraints Modeled
 
-| Constraint          | How Modeled                                                          |
+| Constraint | How Modeled |
 | ------------------- | -------------------------------------------------------------------- |
-| PAC execution dates | 2nd / 16th of month only; weekends roll to next trading day          |
-| PAC fee             | €0 — fee-free                                                        |
-| Manual order fee    | €1 flat settlement fee per hard rebalance order                      |
-| Spread              | Configurable basis points (default 10 bps) applied to close price    |
-| Human latency       | Per-iteration slippage sampled from `uniform(min, max)` trading days |
+| PAC execution dates | 2nd / 16th of month only; weekends roll to next trading day |
+| PAC fee | €0 — fee-free |
+| Manual order fee | €1 flat settlement fee per hard rebalance order |
+| Spread | Configurable basis points (default 10 bps) applied to close price |
+| Human latency | Per-iteration slippage sampled from `uniform(min, max)` trading days |
 
 ## Getting Started
 
@@ -133,11 +133,11 @@ Results are saved to `.pac/backtests/{timestamp}_{strategy}.json`.
 
 Assets can define `proxy_ticker` and `proxy_end` fields in `pac.yaml` (or a backtest-specific YAML like `backtest/pac-backtest.yaml`) for stitching pre-ETF data into longer backtests. This enables 30+ year validation periods for assets whose ETFs launched recently.
 
-| Asset  | Primary Ticker | Proxy Ticker | Proxy End  | Coverage     |
+| Asset | Primary Ticker | Proxy Ticker | Proxy End | Coverage |
 | ------ | -------------- | ------------ | ---------- | ------------ |
-| Stocks | VWCE.DE        | ^GSPC        | 2019-07-22 | 1996–present |
-| Gold   | IGLN.L         | GC=F         | 2011-04-11 | 1996–present |
-| Bonds  | AGGH.L         | ^IRX         | 2017-11-06 | 1996–present |
+| Stocks | VWCE.DE | ^GSPC | 2019-07-22 | 1996–present |
+| Gold | IGLN.L | GC=F | 2011-04-11 | 1996–present |
+| Bonds | AGGH.L | ^IRX | 2017-11-06 | 1996–present |
 
 The data layer automatically stitches proxy and primary ticker data at the `proxy_end` date. See [`docs/crisis-indicators-research.md`](../../docs/crisis-indicators-research.md) Section 2 for proxy ticker validation and correlation analysis.
 
@@ -150,22 +150,25 @@ The data layer automatically stitches proxy and primary ticker data at the `prox
    ```
 
    This creates:
+
    - `src/pac/backtester/strategies/builtin/my_strategy.py`
    - `src/pac/backtester/strategies/tests/test_my_strategy.py`
 
-2. **Implement `on_signals()`** in the generated file. The method receives:
+1. **Implement `on_signals()`** in the generated file. The method receives:
+
    - `signals: list[Signal]` — rules that fired this tick
    - `snapshot: PortfolioSnapshot` — current holdings
    - `report: DeviationReport` — allocation deviations
    - `current_date: date` — simulation date
 
-3. **Return actions** — any combination of `PacAdjustment` and
+1. **Return actions** — any combination of `PacAdjustment` and
    `HardRebalanceOrder` objects wrapped in `Action`.
 
-4. **Optionally override `on_pac_date()`** to dynamically set PAC volumes on
+1. **Optionally override `on_pac_date()`** to dynamically set PAC volumes on
    execution dates (2nd/16th).
 
-5. **Run via CLI:**
+1. **Run via CLI:**
+
    ```bash
    just backtest strategies        # should list my_strategy
    just backtest run --strategy my_strategy --start 2022-01-01 --end 2024-12-31
@@ -233,11 +236,11 @@ class MyStrategy(BacktestStrategy[MyStrategyParams]):
 
 The `backtest/` directory contains configuration and tooling for validating crisis detection and exploitation strategies against 30 years of historical data:
 
-| File                                 | Purpose                                                         |
+| File | Purpose |
 | ------------------------------------ | --------------------------------------------------------------- |
-| `backtest/pac-backtest.yaml`         | 30-year config with proxy tickers and crisis signal definitions |
-| `backtest/ANALYSIS.md`               | Template for recording A/B comparison results                   |
-| `scripts/run_backtest_validation.py` | Automation for baseline vs crisis-aware scenarios (15 configs)  |
+| `backtest/pac-backtest.yaml` | 30-year config with proxy tickers and crisis signal definitions |
+| `backtest/ANALYSIS.md` | Template for recording A/B comparison results |
+| `scripts/run_backtest_validation.py` | Automation for baseline vs crisis-aware scenarios (15 configs) |
 
 Run the full validation suite:
 
@@ -250,19 +253,19 @@ uv run python scripts/run_backtest_validation.py --quick  # reduced iterations
 
 All simulation parameters are documented in `config.py` (`BacktestConfig`). Key fields:
 
-| Parameter                | Default          | Description                               |
+| Parameter | Default | Description |
 | ------------------------ | ---------------- | ----------------------------------------- |
-| `strategy`               | *(required)*     | Strategy name (auto-discovered)           |
-| `strategy_params`        | `{}`             | Dict passed to strategy params model      |
-| `start_date`             | *(required)*     | Backtest start                            |
-| `end_date`               | *(required)*     | Backtest end                              |
-| `initial_cash`           | `10000`          | Starting cash (EUR)                       |
-| `monthly_contribution`   | `500`            | Monthly PAC contribution (EUR)            |
-| `monte_carlo_iterations` | `100`            | Number of MC iterations                   |
-| `slippage_days`          | `(0, 3)`         | Human decision delay range (trading days) |
-| `spread_bps`             | `10`             | Execution spread in basis points          |
-| `metrics`                | `[sortino, ...]` | Metrics to compute                        |
-| `benchmark`              | `true`           | Compare vs. passive buy-and-hold          |
+| `strategy` | *(required)* | Strategy name (auto-discovered) |
+| `strategy_params` | `{}` | Dict passed to strategy params model |
+| `start_date` | *(required)* | Backtest start |
+| `end_date` | *(required)* | Backtest end |
+| `initial_cash` | `10000` | Starting cash (EUR) |
+| `monthly_contribution` | `500` | Monthly PAC contribution (EUR) |
+| `monte_carlo_iterations` | `100` | Number of MC iterations |
+| `slippage_days` | `(0, 3)` | Human decision delay range (trading days) |
+| `spread_bps` | `10` | Execution spread in basis points |
+| `metrics` | `[sortino, ...]` | Metrics to compute |
+| `benchmark` | `true` | Compare vs. passive buy-and-hold |
 
 ## Commands
 

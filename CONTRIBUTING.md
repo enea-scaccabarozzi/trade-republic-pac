@@ -7,14 +7,15 @@ If you find a bug or have a feature idea, please [open an issue](https://github.
 ## Getting Started
 
 1. **Fork** the repository on GitHub.
-2. **Clone** your fork locally:
+
+1. **Clone** your fork locally:
 
    ```bash
    git clone git@github.com:<your-user>/trade-republic-pac.git
    cd trade-republic-pac
    ```
 
-3. **Create a branch** for your change:
+1. **Create a branch** for your change:
 
    ```bash
    git checkout -b feat/short-desc
@@ -46,7 +47,7 @@ Alternatively, open this repository in VS Code with the [Dev Containers](https:/
 
 This project uses [pre-commit](https://pre-commit.com/) to run checks automatically before commits and pushes.
 
-### Setup
+### Install hooks
 
 ```bash
 just hooks-install
@@ -54,13 +55,13 @@ just hooks-install
 
 ### What the hooks do
 
-| Hook Stage   | Check                 | Command          |
+| Hook Stage | Check | Command |
 | ------------ | --------------------- | ---------------- |
-| `pre-commit` | Auto-format code      | `just format`    |
-| `pre-commit` | Lint                  | `just lint`      |
-| `pre-commit` | Type check            | `just typecheck` |
-| `commit-msg` | Conventional commit   | `commitizen`     |
-| `pre-push`   | Full validation suite | `just validate`  |
+| `pre-commit` | Auto-format code | `just format` |
+| `pre-commit` | Lint | `just lint` |
+| `pre-commit` | Type check | `just typecheck` |
+| `commit-msg` | Conventional commit | `commitizen` |
+| `pre-push` | Full validation suite | `just validate` |
 
 ### Skipping hooks
 
@@ -79,12 +80,12 @@ Use sparingly — CI will still enforce all checks.
 
 This project enforces consistent style through automated tooling.
 
-| Tool   | Purpose           | Command             |
+| Tool | Purpose | Command |
 | ------ | ----------------- | ------------------- |
-| `ruff` | Formatting        | `just format`       |
+| `ruff` | Formatting | `just format` |
 | `ruff` | Format check (CI) | `just format-check` |
-| `ruff` | Linting           | `just lint`         |
-| `mypy` | Type checking     | `just typecheck`    |
+| `ruff` | Linting | `just lint` |
+| `mypy` | Type checking | `just typecheck` |
 
 - Line length: **88** characters
 - All code must pass `just validate` (runs lint + typecheck + test).
@@ -96,7 +97,7 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/) t
 
 ### Format
 
-```
+```text
 type(scope): description
 ```
 
@@ -104,17 +105,17 @@ Scope is optional but encouraged.
 
 ### Types
 
-| Type       | Purpose                          | Changelog  |
+| Type | Purpose | Changelog |
 | ---------- | -------------------------------- | ---------- |
-| `feat`     | New feature                      | Minor bump |
-| `fix`      | Bug fix                          | Patch bump |
-| `docs`     | Documentation only               | _Excluded_ |
-| `chore`    | Maintenance / tooling            | _Excluded_ |
-| `ci`       | CI/CD changes                    | _Excluded_ |
-| `style`    | Code style (no logic change)     | _Excluded_ |
-| `refactor` | Code change (no new feature/fix) | Included   |
-| `test`     | Adding or updating tests         | Included   |
-| `perf`     | Performance improvement          | Included   |
+| `feat` | New feature | Minor bump |
+| `fix` | Bug fix | Patch bump |
+| `docs` | Documentation only | _Excluded_ |
+| `chore` | Maintenance / tooling | _Excluded_ |
+| `ci` | CI/CD changes | _Excluded_ |
+| `style` | Code style (no logic change) | _Excluded_ |
+| `refactor` | Code change (no new feature/fix) | Included |
+| `test` | Adding or updating tests | Included |
+| `perf` | Performance improvement | Included |
 
 A `BREAKING CHANGE` footer triggers a **major** version bump.
 
@@ -122,7 +123,7 @@ A `BREAKING CHANGE` footer triggers a **major** version bump.
 
 Good:
 
-```
+```text
 feat(signals): add RSI signal rule
 fix(tr): handle expired session token
 docs: update development setup instructions
@@ -130,7 +131,7 @@ docs: update development setup instructions
 
 Bad:
 
-```
+```text
 updated stuff          # no type, vague description
 feat: Fix bug          # wrong type for a bug fix
 ```
@@ -140,9 +141,13 @@ feat: Fix bug          # wrong type for a bug fix
 ### Adding a Signal Rule
 
 1. Run: `just new-rule my_rule_name`
-2. Edit `src/pac/rules/builtin/my_rule_name.py` — add params fields, implement `evaluate()`
-3. Edit the template at `src/pac/templates/builtin/my_rule_name.j2`
-4. Add a signal entry to `pac.yaml`:
+
+1. Edit `src/pac/rules/builtin/my_rule_name.py` — add params fields, implement `evaluate()`
+
+1. Edit the template at `src/pac/templates/builtin/my_rule_name.j2`
+
+1. Add a signal entry to `pac.yaml`:
+
    ```yaml
    signals:
      - name: my_signal
@@ -152,24 +157,32 @@ feat: Fix bug          # wrong type for a bug fix
        params: {}
        template: my_rule_name
    ```
-5. Run: `just validate` — ensure lint + typecheck + tests pass
-6. Run: `just validate-config` — ensure pac.yaml references are valid
+
+1. Run: `just validate` — ensure lint + typecheck + tests pass
+
+1. Run: `just validate-config` — ensure pac.yaml references are valid
 
 ### Adding a Delivery Channel
 
 1. Run: `just new-channel my_channel`
-2. Edit `src/pac/delivery/channels/my_channel/channel.py` — add config fields, implement `send()`
-3. Add channel config to `pac.yaml`:
+
+1. Edit `src/pac/delivery/channels/my_channel/channel.py` — add config fields, implement `send()`
+
+1. Add channel config to `pac.yaml`:
+
    ```yaml
    channels:
      my_channel:
        type: my_channel
        # your config fields
    ```
-4. If your channel needs a custom format:
+
+1. If your channel needs a custom format:
+
    - Create a `FormatAdapter` subclass in `src/pac/templates/adapters/`
    - Set `supported_formats` to return your adapter's name
-5. Run: `just validate` then `just validate-config`
+
+1. Run: `just validate` then `just validate-config`
 
 ### Validating Configuration
 
@@ -181,6 +194,7 @@ just validate-config --config custom.yaml  # validate a specific file
 ## Testing
 
 - Write tests for all new behavior. Tests live in `tests/`.
+
 - Run the test suite:
 
   ```bash

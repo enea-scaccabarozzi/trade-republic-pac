@@ -13,15 +13,30 @@ hooks-install:
 # Run ruff linter
 lint:
     uv run ruff check src tests scripts
+    just lint-md
+
+# Lint Markdown files
+lint-md:
+    rg --files -g '*.md' -0 | xargs -0 uv run pymarkdown --config .pymarkdown.json scan
 
 # Auto-format code
 format:
     uv run ruff format src tests scripts
     uv run ruff check --fix src tests scripts
+    just format-md
+
+# Auto-format Markdown files
+format-md:
+    rg --files -g '*.md' -0 | xargs -0 uv run mdformat
 
 # Check formatting without modifying files
 format-check:
     uv run ruff format --check src tests scripts
+    just format-md-check
+
+# Check Markdown formatting without modifying files
+format-md-check:
+    rg --files -g '*.md' -0 | xargs -0 uv run mdformat --check
 
 # Run mypy type checker
 typecheck:
@@ -32,7 +47,7 @@ test *args:
     uv run pytest {{ args }}
 
 # Run all checks (lint + typecheck + test)
-validate: lint typecheck test
+validate: lint format-check typecheck test
 
 # Run the application
 run:

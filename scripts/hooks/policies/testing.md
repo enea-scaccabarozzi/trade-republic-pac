@@ -27,15 +27,15 @@ Every logic change must have corresponding tests. Tests must follow black-box te
 For each changed file in the diff:
 
 1. **Missing tests**: Does new or modified logic have corresponding test coverage? Check the co-located `tests/` directory and `tests/` at project root.
-2. **Test quality**: Do existing tests follow black-box principles?
+1. **Test quality**: Do existing tests follow black-box principles?
    - Tests should verify WHAT a function returns, not HOW it works
    - No patching of private methods or internal state
    - No mocking the module under test — only its collaborators
-3. **DI compliance**: Are external dependencies injected and faked at the boundary?
+1. **DI compliance**: Are external dependencies injected and faked at the boundary?
    - Real Pydantic models, not mocked validators
    - Fake only: network (TR WebSocket, Telegram API), filesystem, env vars, yfinance
-4. **Settings construction**: Tests must use `make_settings()` from `tests/conftest.py`, never construct `Settings` directly
-5. **BacktestStrategy tests**: If a strategy is modified, verify that `reset()` behavior is tested
+1. **Settings construction**: Tests must use `make_settings()` from `tests/conftest.py`, never construct `Settings` directly
+1. **BacktestStrategy tests**: If a strategy is modified, verify that `reset()` behavior is tested
 
 ## Anti-Rationalization
 
@@ -46,15 +46,14 @@ For each changed file in the diff:
 | "Integration tests cover this" | Unit tests catch specific edge cases that integration tests miss |
 | "They can add tests later" | Tests come WITH the code, not after. TDD is the project standard |
 
-## Output Format — MANDATORY
+## Output Format
 
-Your ENTIRE response must begin with one of these two lines EXACTLY as written:
+Your response MUST start with a verdict line:
 
-verdict: PASS
-verdict: FAIL
+verdict: PASS — no violations found
+verdict: FAIL — violations found
 
-This is not optional. This is not a suggestion. The first line of your response MUST be `verdict: PASS` or `verdict: FAIL`. An automated system parses this line to determine the result. If you omit it, the review is treated as a failure.
+After the verdict:
 
-After the verdict line:
-- If PASS: one sentence confirming no issues found
-- If FAIL: list each violation with the file path and what action to take
+- PASS: one sentence confirming compliance
+- FAIL: list each violation with file path and required action

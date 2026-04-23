@@ -4,11 +4,11 @@ Signal rule engine — evaluates portfolio state against configurable rules and 
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                  |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Depends on  | [`models`](../models/) (`Signal`, `PortfolioSnapshot`, `SignalSeverity`), [`analysis`](../analysis/) (`DeviationReport`) |
+| Depends on | [`models`](../models/) (`Signal`, `PortfolioSnapshot`, `SignalSeverity`), [`analysis`](../analysis/) (`DeviationReport`) |
 | Consumed by | [`orchestrator`](../orchestrator/) (`SignalRegistry` evaluates signals, `build_template_data` produces template context) |
-| Boundary    | Rule evaluation, param validation, signal generation                                                                     |
+| Boundary | Rule evaluation, param validation, signal generation |
 
 ## Dependencies
 
@@ -22,21 +22,21 @@ Signal rule engine — evaluates portfolio state against configurable rules and 
 
 ## Key Components
 
-| Component                  | File                                | Description                                                                |
+| Component | File | Description |
 | -------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
-| `SignalRule[ParamsT]`      | `base.py`                           | ABC + Generic base class; `__init_subclass__` auto-extracts `params_model` |
-| `SignalRegistry`           | `registry.py`                       | Collects rule classes, validates params, dispatches evaluation             |
-| `discover_rules()`         | `discovery.py`                      | Scans `builtin/` for concrete `SignalRule` subclasses                      |
-| `ThresholdDeviationRule`   | `builtin/threshold.py`              | Fires on per-asset deviation thresholds                                    |
-| `CycleInversionRule`       | `builtin/cycle.py`                  | Detects diverging asset pairs                                              |
-| `PacPlanRule`              | `builtin/pac_plan.py`               | Computes monthly PAC allocation plan                                       |
-| `_indicators`              | `builtin/_indicators.py`            | Pure indicator math (drawdown, divergence, volatility, correlation)        |
-| `EquityDrawdownRule`       | `builtin/equity_drawdown.py`        | Drawdown depth + velocity detection (requires `MarketContext`)             |
-| `GoldEquityDivergenceRule` | `builtin/gold_equity_divergence.py` | Flight-to-safety divergence detection                                      |
-| `VolatilityRegimeRule`     | `builtin/volatility_regime.py`      | Vol regime shift detection (short/long ratio)                              |
-| `RelativeStrengthRule`     | `builtin/relative_strength.py`      | Gold/equity RS ratio MA breakout                                           |
-| `DeathCrossRule`           | `builtin/death_cross.py`            | SMA 50/200 death cross detection                                           |
-| `CrisisCompositeRule`      | `builtin/crisis_composite.py`       | N-of-M voting composite + Type C bond-equity guard                         |
+| `SignalRule[ParamsT]` | `base.py` | ABC + Generic base class; `__init_subclass__` auto-extracts `params_model` |
+| `SignalRegistry` | `registry.py` | Collects rule classes, validates params, dispatches evaluation |
+| `discover_rules()` | `discovery.py` | Scans `builtin/` for concrete `SignalRule` subclasses |
+| `ThresholdDeviationRule` | `builtin/threshold.py` | Fires on per-asset deviation thresholds |
+| `CycleInversionRule` | `builtin/cycle.py` | Detects diverging asset pairs |
+| `PacPlanRule` | `builtin/pac_plan.py` | Computes monthly PAC allocation plan |
+| `_indicators` | `builtin/_indicators.py` | Pure indicator math (drawdown, divergence, volatility, correlation) |
+| `EquityDrawdownRule` | `builtin/equity_drawdown.py` | Drawdown depth + velocity detection (requires `MarketContext`) |
+| `GoldEquityDivergenceRule` | `builtin/gold_equity_divergence.py` | Flight-to-safety divergence detection |
+| `VolatilityRegimeRule` | `builtin/volatility_regime.py` | Vol regime shift detection (short/long ratio) |
+| `RelativeStrengthRule` | `builtin/relative_strength.py` | Gold/equity RS ratio MA breakout |
+| `DeathCrossRule` | `builtin/death_cross.py` | SMA 50/200 death cross detection |
+| `CrisisCompositeRule` | `builtin/crisis_composite.py` | N-of-M voting composite + Type C bond-equity guard |
 
 ## Configuration
 
@@ -84,13 +84,13 @@ See [`src/pac/market_context.py`](../market_context.py) for the protocol definit
 
 The crisis detection system consists of 5 independent voting indicators plus 1 guard rule, composed by the `CrisisCompositeRule`:
 
-| Indicator                  | What it detects                                    |
+| Indicator | What it detects |
 | -------------------------- | -------------------------------------------------- |
-| `EquityDrawdownRule`       | Drawdown depth exceeding threshold + velocity      |
+| `EquityDrawdownRule` | Drawdown depth exceeding threshold + velocity |
 | `GoldEquityDivergenceRule` | Gold rising while equities fall (flight-to-safety) |
-| `VolatilityRegimeRule`     | Short-term vol exceeding long-term vol ratio       |
-| `RelativeStrengthRule`     | Gold/equity RS ratio breaking above its MA         |
-| `DeathCrossRule`           | SMA 50 crossing below SMA 200                      |
+| `VolatilityRegimeRule` | Short-term vol exceeding long-term vol ratio |
+| `RelativeStrengthRule` | Gold/equity RS ratio breaking above its MA |
+| `DeathCrossRule` | SMA 50 crossing below SMA 200 |
 
 The composite rule uses **N-of-M activation** (default: 3 of 5 indicators must be active) to fire a crisis signal. A **Type C guard** (bond-equity correlation) can veto the signal when bonds and equities fall together (2022-style inflation events where defensive selling would be counterproductive).
 

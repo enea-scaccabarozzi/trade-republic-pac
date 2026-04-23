@@ -23,7 +23,7 @@ Reads your Trade Republic portfolio via the `pytr` library (read-only), detects 
 
 ## Repository Structure
 
-```
+```text
 src/pac/
 ├── __main__.py               # Structlog config + uvicorn runner
 ├── app.py                    # Starlette ASGI app (webhook, job, health endpoints)
@@ -113,7 +113,7 @@ docker compose up -d
 
 Interactive CLI scripts that guide you through onboarding and deployment. Each script caches results in `.pac/` (gitignored) and supports `--override` to re-run cached steps.
 
-#### Guided Setup (recommended for first-time users)
+### Guided Setup (recommended for first-time users)
 
 Clone the repo and run the interactive setup:
 
@@ -126,12 +126,13 @@ just run      # start the application
 ```
 
 `just setup` runs all three setup scripts in dependency order:
-1. **Trade Republic** — validates API credentials and stores session
-2. **Telegram** — creates bot via BotFather, polls for `/start` (webhook registration is deferred)
-3. **GCP** — deploys Cloud Run, registers Telegram webhook, creates scheduler jobs
-4. **generate-env** — writes `.env` from cached results
 
-#### Manual Setup
+1. **Trade Republic** — validates API credentials and stores session
+1. **Telegram** — creates bot via BotFather, polls for `/start` (webhook registration is deferred)
+1. **GCP** — deploys Cloud Run, registers Telegram webhook, creates scheduler jobs
+1. **generate-env** — writes `.env` from cached results
+
+### Manual Setup
 
 Copy `.env.example` to `.env` and fill in your values:
 
@@ -142,7 +143,7 @@ cp .env.example .env
 
 See `.env.example` for all required variables and their descriptions.
 
-#### Running Individual Steps
+### Running Individual Steps
 
 Run all steps in sequence:
 
@@ -160,13 +161,13 @@ just setup-webhook                     # Register webhook (after Telegram + GCP)
 just generate-env                      # Regenerate .env from caches
 ```
 
-#### Three Setup Paths
+### Three Setup Paths
 
-| Path                  | Steps                                                                                               | When to use                                |
+| Path | Steps | When to use |
 | --------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Full `just setup`** | `just setup` (runs all 3 scripts + generate-env)                                                    | First-time users, easiest path             |
-| **Partial scripts**   | Run `just setup-tr`, `just setup-telegram`, `just setup-gcp` individually, then `just generate-env` | Re-running one step, or customizing order  |
-| **Full manual**       | Copy `.env.example` to `.env`, fill in all values by hand                                           | CI/CD, Docker-only, no interactive prompts |
+| **Full `just setup`** | `just setup` (runs all 3 scripts + generate-env) | First-time users, easiest path |
+| **Partial scripts** | Run `just setup-tr`, `just setup-telegram`, `just setup-gcp` individually, then `just generate-env` | Re-running one step, or customizing order |
+| **Full manual** | Copy `.env.example` to `.env`, fill in all values by hand | CI/CD, Docker-only, no interactive prompts |
 
 > **Note:** If you run `just setup-telegram` standalone (without `--skip-webhook`), the script will prompt for a webhook URL if GCP hasn't been set up yet. To avoid the prompt, pass `--skip-webhook` and register the webhook later with `just setup-webhook`.
 
@@ -175,11 +176,13 @@ just generate-env                      # Regenerate .env from caches
 Sets up and validates Trade Republic API credentials.
 
 **What it does:**
+
 - Connects to the Trade Republic API (read-only) via `pytr`
 - Runs the 2FA verification flow (app notification or SMS fallback)
 - Saves session cookies locally for future API access
 
 **Prerequisites:**
+
 - A Trade Republic account with an active portfolio
 - The Trade Republic app installed (for 2FA code delivery)
 
@@ -197,16 +200,18 @@ just setup-tr --override
 ```
 
 **CLI flags:**
-| Flag         | Description                                            |
+| Flag | Description |
 | ------------ | ------------------------------------------------------ |
-| `--phone`    | TR phone number in E.164 format (e.g. `+491234567890`) |
-| `--override` | Re-run setup even if `.pac/tr.json` exists             |
+| `--phone` | TR phone number in E.164 format (e.g. `+491234567890`) |
+| `--override` | Re-run setup even if `.pac/tr.json` exists |
 
 **What it creates:**
+
 - `.pac/tr.json` — cached setup state (phone, masked PIN, cookies path)
 - `.pac/tr_cookies` — pytr session cookies
 
 **Security notes:**
+
 - Your PIN is **never stored** in the cache — only a masked placeholder
 - PIN input is either prompted with masked input or read from the `TR_PIN` environment variable
 - PIN is **never accepted as a CLI flag** (to avoid shell history leaks)
@@ -217,6 +222,7 @@ just setup-tr --override
 Deploys the application to Google Cloud Run with Cloud Scheduler jobs.
 
 **What it does:**
+
 - Creates or selects a GCP project
 - Enables required APIs (Cloud Run, Cloud Scheduler, Artifact Registry)
 - Builds and pushes the Docker image to Artifact Registry
@@ -226,6 +232,7 @@ Deploys the application to Google Cloud Run with Cloud Scheduler jobs.
 - Creates Cloud Scheduler jobs for each signal defined in `pac.yaml`
 
 **Prerequisites:**
+
 - [Google Cloud CLI (`gcloud`)](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`)
 - [Docker](https://docs.docker.com/get-docker/) installed and running
 - `pac.yaml` configured (copy from `pac.yaml.example`)
@@ -245,23 +252,26 @@ just setup-gcp --override
 ```
 
 **CLI flags:**
-| Flag             | Description                                            |
+| Flag | Description |
 | ---------------- | ------------------------------------------------------ |
-| `--project`      | GCP project ID (lists existing projects if omitted)    |
-| `--region`       | GCP region (default: `europe-west1`)                   |
+| `--project` | GCP project ID (lists existing projects if omitted) |
+| `--region` | GCP region (default: `europe-west1`) |
 | `--service-name` | Cloud Run service name (default: `trade-republic-pac`) |
-| `--override`     | Re-run setup even if `.pac/gcp.json` exists            |
+| `--override` | Re-run setup even if `.pac/gcp.json` exists |
 
 **What it creates:**
+
 - `.pac/gcp.json` — cached deployment state (project, region, service URL, image URI, scheduler jobs)
 - GCP resources: Artifact Registry repo, Cloud Run service, Cloud Scheduler jobs
 
 **Cost estimates (within free tier for typical usage):**
+
 - Cloud Run: ~2M requests/month free
 - Cloud Scheduler: 3 free jobs, then $0.10/job/month
 - Artifact Registry: 0.5 GB free storage
 
 **Security notes:**
+
 - The Cloud Run service is **publicly accessible** (required for Telegram webhook delivery) — authentication is enforced at the application level via HMAC headers (`X-Job-Secret`, `X-Telegram-Bot-Api-Secret-Token`)
 - Environment variables (including secrets) are passed via a temporary file that is deleted immediately after deployment
 - Cloud Scheduler job secrets (`X-Job-Secret` header) may appear in GCP audit logs — these logs are only accessible to project admins
@@ -271,6 +281,7 @@ just setup-gcp --override
 Creates a Telegram bot via BotFather, retrieves your chat ID, and registers a webhook.
 
 **What it does:**
+
 - Logs into your personal Telegram account via Telethon (MTProto)
 - Sends commands to @BotFather to create a new bot
 - Polls for your `/start` message to obtain your `chat_id`
@@ -278,6 +289,7 @@ Creates a Telegram bot via BotFather, retrieves your chat ID, and registers a we
 - Cleans up the Telethon session file after completion
 
 **Prerequisites:**
+
 - A personal Telegram account
 - API credentials (`api_id` and `api_hash`) from [my.telegram.org](https://my.telegram.org)
 - A webhook URL (auto-detected from `.pac/gcp.json` if GCP setup was run first)
@@ -308,25 +320,27 @@ just setup-webhook --override
 > **Note:** Your Telegram phone number is always prompted interactively for security — it cannot be passed as a CLI flag or environment variable. In the `just setup` flow, webhook registration is deferred to the GCP step.
 
 **CLI flags:**
-| Flag             | Description                                                             |
+| Flag | Description |
 | ---------------- | ----------------------------------------------------------------------- |
-| `--bot-name`     | Bot display name (e.g. "My PAC Bot")                                    |
-| `--bot-username` | Bot username — must end in `bot` (e.g. `my_pac_bot`)                    |
-| `--override`     | Re-run setup even if `.pac/telegram.json` exists                        |
+| `--bot-name` | Bot display name (e.g. "My PAC Bot") |
+| `--bot-username` | Bot username — must end in `bot` (e.g. `my_pac_bot`) |
+| `--override` | Re-run setup even if `.pac/telegram.json` exists |
 | `--skip-webhook` | Skip webhook registration (done later by GCP deploy or `setup-webhook`) |
 
 **Environment variable fallbacks:**
-| Variable            | Description                                           |
+| Variable | Description |
 | ------------------- | ----------------------------------------------------- |
-| `TELEGRAM_API_ID`   | Telegram API ID (number) — skips interactive prompt   |
+| `TELEGRAM_API_ID` | Telegram API ID (number) — skips interactive prompt |
 | `TELEGRAM_API_HASH` | Telegram API hash (string) — skips interactive prompt |
 
 > Phone number is **not** configurable via env var or CLI flag — it is always prompted interactively to avoid leaking it in shell history or process lists.
 
 **What it creates:**
+
 - `.pac/telegram.json` — cached setup state (bot token, username, chat ID, webhook URL/secret)
 
 **Security notes:**
+
 - The Telethon session file (`.pac/telethon.session`) is **automatically deleted** after bot creation to avoid leaving personal Telegram auth material on disk
 - Bot token and webhook secret are sensitive credentials — they are **never accepted as CLI flags** (to avoid shell history leaks)
 - If bot creation succeeds but chat_id polling is interrupted, the script saves a partial cache and resumes from chat_id polling on the next run
@@ -350,8 +364,8 @@ Secrets are kept out of the YAML file using `${ENV_VAR}` interpolation — the c
 The loader searches for config in this order:
 
 1. Explicit path passed to `load_config()`
-2. `PAC_CONFIG_PATH` environment variable
-3. `pac.yaml` in the current working directory
+1. `PAC_CONFIG_PATH` environment variable
+1. `pac.yaml` in the current working directory
 
 ### Config Structure
 
@@ -402,7 +416,7 @@ Assets are fully dynamic — there is no fixed enum. Each asset has a string `id
 
 ## Architecture
 
-```
+```text
 Telegram API ──POST /webhook──▶ ┌────────────────────┐
                                 │  Starlette ASGI    │
 Scheduler    ──POST /jobs/*────▶│  (Docker)          │──▶ TR WebSocket API
@@ -415,28 +429,28 @@ Starlette ASGI application running in a Docker container. Telegram webhook handl
 
 ### Endpoints
 
-| Path                 | Method | Auth                              | Description               |
+| Path | Method | Auth | Description |
 | -------------------- | ------ | --------------------------------- | ------------------------- |
-| `/webhook`           | POST   | `X-Telegram-Bot-Api-Secret-Token` | Telegram bot updates      |
-| `/jobs/hourly-check` | POST   | `X-Job-Secret`                    | Run signal evaluation     |
-| `/jobs/monthly-pac`  | POST   | `X-Job-Secret`                    | Calculate & send PAC plan |
-| `/health`            | GET    | —                                 | Health check              |
+| `/webhook` | POST | `X-Telegram-Bot-Api-Secret-Token` | Telegram bot updates |
+| `/jobs/hourly-check` | POST | `X-Job-Secret` | Run signal evaluation |
+| `/jobs/monthly-pac` | POST | `X-Job-Secret` | Calculate & send PAC plan |
+| `/health` | GET | — | Health check |
 
 ## Telegram Commands
 
-| Command         | Description                                |
+| Command | Description |
 | --------------- | ------------------------------------------ |
-| `/start`        | Greet and list available commands          |
-| `/help`         | Show available commands (alias for /start) |
-| `/status`       | Portfolio allocation & deviations          |
-| `/rebalance`    | Evaluate rebalance signals                 |
-| `/redistribute` | Calculate monthly PAC plan                 |
+| `/start` | Greet and list available commands |
+| `/help` | Show available commands (alias for /start) |
+| `/status` | Portfolio allocation & deviations |
+| `/rebalance` | Evaluate rebalance signals |
+| `/redistribute` | Calculate monthly PAC plan |
 
 ## Backtesting
 
 Validate your signal and strategy configuration against historical price data before deploying live.
 
-### Quick Start
+### Backtesting Quick Start
 
 Install the backtest dependencies:
 
@@ -454,13 +468,13 @@ just backtest
 
 ### Commands
 
-| Command      | Description                                            |
+| Command | Description |
 | ------------ | ------------------------------------------------------ |
-| `run`        | Run a backtest with a selected strategy and date range |
-| `strategies` | List all available strategies                          |
-| `results`    | List saved backtest results                            |
-| `show`       | Display metrics and equity curve for a saved result    |
-| `dashboard`  | Launch the web dashboard for visual result exploration |
+| `run` | Run a backtest with a selected strategy and date range |
+| `strategies` | List all available strategies |
+| `results` | List saved backtest results |
+| `show` | Display metrics and equity curve for a saved result |
+| `dashboard` | Launch the web dashboard for visual result exploration |
 
 Tickers for historical data are configured alongside each asset in `pac.yaml`. See [`pac.yaml.example`](pac.yaml.example) for reference.
 
@@ -472,7 +486,7 @@ For a detailed analysis of the crisis exploitation strategy, see the [research p
 
 Interactive web UI for exploring backtest results, running backtests, and comparing runs.
 
-#### Quick Start
+#### Dashboard Quick Start
 
 ```bash
 # Install dependencies (Python + Node)
@@ -504,31 +518,31 @@ The Vite dev server runs at `http://localhost:5173` with HMR.
 
 #### Dashboard Commands
 
-| Command                       | Description                                |
+| Command | Description |
 | ----------------------------- | ------------------------------------------ |
-| `just dashboard-sync`         | Install Python dashboard dependencies      |
-| `just dashboard-ui-sync`      | Install Node dashboard dependencies (bun)  |
-| `just dashboard-ui-build`     | Build frontend for production              |
-| `just dashboard-ui-dev`       | Start Vite dev server with HMR             |
-| `just dashboard-dev`          | Start API server with hot-reload           |
-| `just dashboard`              | Start production dashboard                 |
-| `just dashboard-ui-lint`      | Lint frontend code (Biome)                 |
-| `just dashboard-ui-format`    | Format frontend code (Biome)               |
-| `just dashboard-ui-typecheck` | Type-check frontend (TypeScript)           |
-| `just dashboard-ui-validate`  | Run all frontend checks (lint + typecheck) |
+| `just dashboard-sync` | Install Python dashboard dependencies |
+| `just dashboard-ui-sync` | Install Node dashboard dependencies (bun) |
+| `just dashboard-ui-build` | Build frontend for production |
+| `just dashboard-ui-dev` | Start Vite dev server with HMR |
+| `just dashboard-dev` | Start API server with hot-reload |
+| `just dashboard` | Start production dashboard |
+| `just dashboard-ui-lint` | Lint frontend code (Biome) |
+| `just dashboard-ui-format` | Format frontend code (Biome) |
+| `just dashboard-ui-typecheck` | Type-check frontend (TypeScript) |
+| `just dashboard-ui-validate` | Run all frontend checks (lint + typecheck) |
 
 #### Keyboard Shortcuts
 
 Press `?` anywhere in the dashboard to see all available shortcuts.
 
-| Shortcut | Action                |
+| Shortcut | Action |
 | -------- | --------------------- |
-| `g h`    | Go to Dashboard Home  |
-| `g r`    | Go to Run Backtest    |
-| `g c`    | Go to Compare         |
-| `?`      | Keyboard shortcuts    |
-| `n`      | New backtest (from /) |
-| `/`      | Focus search (from /) |
+| `g h` | Go to Dashboard Home |
+| `g r` | Go to Run Backtest |
+| `g c` | Go to Compare |
+| `?` | Keyboard shortcuts |
+| `n` | New backtest (from /) |
+| `/` | Focus search (from /) |
 
 ## Extending
 

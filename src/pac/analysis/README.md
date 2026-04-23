@@ -4,11 +4,11 @@ Portfolio deviation calculation and PAC redistribution planning. Pure computatio
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                   |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | [`models`](../models/) (`PortfolioSnapshot`, `SignalSeverity`), [`config`](../config/) (`Settings`)                       |
+| Depends on | [`models`](../models/) (`PortfolioSnapshot`, `SignalSeverity`), [`config`](../config/) (`Settings`) |
 | Consumed by | [`rules`](../rules/) (`evaluate()` calls `calculate_deviations`), [`orchestrator`](../orchestrator/) (`compute_pac_plan`) |
-| Boundary    | Deviation math, severity classification, projection-based PAC distribution                                                |
+| Boundary | Deviation math, severity classification, projection-based PAC distribution |
 
 ## Dependencies
 
@@ -21,17 +21,17 @@ Portfolio deviation calculation and PAC redistribution planning. Pure computatio
 
 ## Key Components
 
-| Component                  | File           | Description                                                             |
+| Component | File | Description |
 | -------------------------- | -------------- | ----------------------------------------------------------------------- |
-| `calculate_deviations()`   | `deviation.py` | Per-asset deviation from target allocation with severity classification |
-| `DeviationResult`          | `deviation.py` | Single-asset deviation data (actual vs target pct, severity)            |
-| `DeviationReport`          | `deviation.py` | Aggregated deviation results with worst-case severity                   |
-| `classify_severity()`      | `deviation.py` | Maps absolute deviation to `INFO` / `WARNING` / `CRITICAL`              |
-| `get_target_allocations()` | `deviation.py` | Extracts asset ID → target pct mapping from `Settings`                  |
-| `compute_pac_plan()`       | `rebalance.py` | Projection-based PAC distribution toward target allocation              |
-| `calculate_pac_plan()`     | `rebalance.py` | Convenience wrapper combining settings extraction + computation         |
-| `PacAllocation`            | `rebalance.py` | Computed PAC amount for a single asset                                  |
-| `PacPlan`                  | `rebalance.py` | Aggregated PAC allocations for the month                                |
+| `calculate_deviations()` | `deviation.py` | Per-asset deviation from target allocation with severity classification |
+| `DeviationResult` | `deviation.py` | Single-asset deviation data (actual vs target pct, severity) |
+| `DeviationReport` | `deviation.py` | Aggregated deviation results with worst-case severity |
+| `classify_severity()` | `deviation.py` | Maps absolute deviation to `INFO` / `WARNING` / `CRITICAL` |
+| `get_target_allocations()` | `deviation.py` | Extracts asset ID → target pct mapping from `Settings` |
+| `compute_pac_plan()` | `rebalance.py` | Projection-based PAC distribution toward target allocation |
+| `calculate_pac_plan()` | `rebalance.py` | Convenience wrapper combining settings extraction + computation |
+| `PacAllocation` | `rebalance.py` | Computed PAC amount for a single asset |
+| `PacPlan` | `rebalance.py` | Aggregated PAC allocations for the month |
 
 ## Configuration
 

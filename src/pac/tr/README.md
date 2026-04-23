@@ -4,11 +4,11 @@ Read-only WebSocket client for fetching portfolio data from Trade Republic via t
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                      |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------ |
-| Depends on  | [`models`](../models/) (`PortfolioSnapshot`, `Position`, `SavingsPlan`), [`config`](../config/) (`Settings`) |
-| Consumed by | [`app.py`](../app.py) (portfolio fetching), [`delivery`](../delivery/) (interactive command handling)        |
-| Boundary    | Edge adapter — translates pytr WebSocket API into typed domain models                                        |
+| Depends on | [`models`](../models/) (`PortfolioSnapshot`, `Position`, `SavingsPlan`), [`config`](../config/) (`Settings`) |
+| Consumed by | [`app.py`](../app.py) (portfolio fetching), [`delivery`](../delivery/) (interactive command handling) |
+| Boundary | Edge adapter — translates pytr WebSocket API into typed domain models |
 
 ## Dependencies
 
@@ -20,22 +20,22 @@ Read-only WebSocket client for fetching portfolio data from Trade Republic via t
 
 ## Key Components
 
-| Component               | File            | Description                                                              |
+| Component | File | Description |
 | ----------------------- | --------------- | ------------------------------------------------------------------------ |
-| `TRClient`              | `client.py`     | Async client wrapping pytr's `TradeRepublicApi` for read-only operations |
-| `tr_session()`          | `client.py`     | Async context manager — connects, yields client, closes on exit          |
-| `TRClientError`         | `exceptions.py` | Base exception for all TR client errors                                  |
-| `TRConnectionError`     | `exceptions.py` | WebSocket connection failure or timeout                                  |
-| `TRSessionExpiredError` | `exceptions.py` | Session cookies expired — re-authentication required                     |
+| `TRClient` | `client.py` | Async client wrapping pytr's `TradeRepublicApi` for read-only operations |
+| `tr_session()` | `client.py` | Async context manager — connects, yields client, closes on exit |
+| `TRClientError` | `exceptions.py` | Base exception for all TR client errors |
+| `TRConnectionError` | `exceptions.py` | WebSocket connection failure or timeout |
+| `TRSessionExpiredError` | `exceptions.py` | Session cookies expired — re-authentication required |
 
 ## Configuration
 
 Connection credentials are read from `Settings.broker`:
 
-| Field          | Source                | Description                                                  |
+| Field | Source | Description |
 | -------------- | --------------------- | ------------------------------------------------------------ |
-| `phone_number` | `broker.phone_number` | Trade Republic account phone                                 |
-| `pin`          | `broker.pin`          | Account PIN                                                  |
+| `phone_number` | `broker.phone_number` | Trade Republic account phone |
+| `pin` | `broker.pin` | Account PIN |
 | `cookies_path` | `broker.cookies_path` | Path for session cookie storage (default: `/tmp/tr_cookies`) |
 
 All secrets should use `${ENV_VAR}` interpolation in `pac.yaml`.
@@ -56,19 +56,19 @@ async with tr_session(settings) as client:
 
 ### `TRClient` Methods
 
-| Method                | Returns             | Description                                   |
+| Method | Returns | Description |
 | --------------------- | ------------------- | --------------------------------------------- |
-| `connect()`           | `None`              | Opens WebSocket, resumes session from cookies |
-| `close()`             | `None`              | Closes the WebSocket connection               |
-| `get_portfolio()`     | `PortfolioSnapshot` | Fetches positions, cash, and ticker prices    |
-| `get_cash_balance()`  | `Decimal`           | Fetches available cash balance                |
-| `get_savings_plans()` | `list[SavingsPlan]` | Fetches configured savings plans              |
+| `connect()` | `None` | Opens WebSocket, resumes session from cookies |
+| `close()` | `None` | Closes the WebSocket connection |
+| `get_portfolio()` | `PortfolioSnapshot` | Fetches positions, cash, and ticker prices |
+| `get_cash_balance()` | `Decimal` | Fetches available cash balance |
+| `get_savings_plans()` | `list[SavingsPlan]` | Fetches configured savings plans |
 
 ### Error Handling
 
 All exceptions inherit from `TRClientError`:
 
-```
+```text
 TRClientError
 ├── TRConnectionError        # connection failure, timeout
 └── TRSessionExpiredError    # cookies expired, needs re-auth

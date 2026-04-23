@@ -8,7 +8,7 @@ The project has a strict module dependency graph. Imports must flow downward. Ex
 
 ## Dependency Direction Graph
 
-```
+```text
 models       ← no pac imports (foundation)
 config       ← no pac imports (foundation)
 tr           ← models
@@ -23,21 +23,21 @@ backtester   ← analysis, config, models, rules (+ external: yfinance, quantsta
 ## Rules
 
 1. **Never import upward** — e.g., `models` must never import from `rules`
-2. **Never create circular imports** between submodules
-3. **backtester is isolated** — zero imports from `app.py` or the HTTP layer
-4. **New imports require README update** — if a module imports from another pac module not listed in its README Dependencies table, the table must be updated FIRST
+1. **Never create circular imports** between submodules
+1. **backtester is isolated** — zero imports from `app.py` or the HTTP layer
+1. **New imports require README update** — if a module imports from another pac module not listed in its README Dependencies table, the table must be updated FIRST
 
 ## What to Check
 
 For each changed Python file under `src/pac/`:
 
 1. **Import direction**: Read the file's import statements. Check each `from pac.X import ...` against the dependency graph above. Flag any import that goes upward or sideways in violation.
-2. **Undeclared dependencies**: If the file imports from a pac module, check the containing module's README.md Dependencies table. If the import source is not listed, flag it.
-3. **DI violations**: Look for functions or methods that internally construct their collaborators instead of receiving them as parameters. Specifically:
+1. **Undeclared dependencies**: If the file imports from a pac module, check the containing module's README.md Dependencies table. If the import source is not listed, flag it.
+1. **DI violations**: Look for functions or methods that internally construct their collaborators instead of receiving them as parameters. Specifically:
    - Calling `Settings.model_validate()`, `load_config()`, or similar inside a function body (should be injected)
    - Instantiating client objects (HTTP clients, DB connections) inside business logic
    - Using module-level singletons for stateful dependencies
-4. **Module boundary violations**: Check if the change introduces a new cross-module dependency. If so, verify it follows the allowed direction.
+1. **Module boundary violations**: Check if the change introduces a new cross-module dependency. If so, verify it follows the allowed direction.
 
 ## Anti-Rationalization
 
@@ -48,15 +48,14 @@ For each changed Python file under `src/pac/`:
 | "DI is overkill for this simple function" | DI is the project standard. Every external collaborator is injected |
 | "The circular import doesn't cause a runtime error" | Circular imports are forbidden regardless of whether Python resolves them at runtime |
 
-## Output Format — MANDATORY
+## Output Format
 
-Your ENTIRE response must begin with one of these two lines EXACTLY as written:
+Your response MUST start with a verdict line:
 
-verdict: PASS
-verdict: FAIL
+verdict: PASS — no violations found
+verdict: FAIL — violations found
 
-This is not optional. This is not a suggestion. The first line of your response MUST be `verdict: PASS` or `verdict: FAIL`. An automated system parses this line to determine the result. If you omit it, the review is treated as a failure.
+After the verdict:
 
-After the verdict line:
-- If PASS: one sentence confirming no issues found
-- If FAIL: list each violation with the file path and what action to take
+- PASS: one sentence confirming compliance
+- FAIL: list each violation with file path and required action

@@ -4,11 +4,11 @@ Performance metrics framework for the backtester. Computes per-iteration risk/re
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                                                                                                                                                                                 |
+| Aspect | Details |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | [`engine`](../engine/) (`IterationResult`, `SimulationResult`, `BacktestSimulator`), [`data`](../data/) (`PriceSeries`), [`config`](../config.py) (`BacktestConfig`), [`analysis`](../../analysis/) (deviation), [`rules`](../../rules/) (signal registry), `quantstats` (optional dep) |
-| Consumed by | Backtester CLI (Phase 6), strategy comparison workflows                                                                                                                                                                                                                                 |
-| Boundary    | Pure computation — no I/O, no network calls                                                                                                                                                                                                                                             |
+| Depends on | [`engine`](../engine/) (`IterationResult`, `SimulationResult`, `BacktestSimulator`), [`data`](../data/) (`PriceSeries`), [`config`](../config.py) (`BacktestConfig`), [`analysis`](../../analysis/) (deviation), [`rules`](../../rules/) (signal registry), `quantstats` (optional dep) |
+| Consumed by | Backtester CLI (Phase 6), strategy comparison workflows |
+| Boundary | Pure computation — no I/O, no network calls |
 
 ## Dependencies
 
@@ -20,32 +20,32 @@ Performance metrics framework for the backtester. Computes per-iteration risk/re
 
 ## Key Components
 
-| Component             | File            | Description                                                                                 |
+| Component | File | Description |
 | --------------------- | --------------- | ------------------------------------------------------------------------------------------- |
-| `MetricsCalculator`   | `calculator.py` | Wraps quantstats.stats functions, computes per-iteration values, aggregates via percentiles |
-| `MetricResult`        | `models.py`     | Single metric's aggregated value: median, P5, P95, and per-iteration raw values             |
-| `MetricSet`           | `models.py`     | All computed metrics for a single scenario (strategy or benchmark)                          |
-| `BacktestReport`      | `models.py`     | Complete report: strategy metrics, benchmark metrics (optional), config, iteration data     |
-| `compute_report()`    | `report.py`     | Top-level orchestrator: strategy metrics → benchmark run → benchmark metrics → report       |
-| `run_benchmark()`     | `benchmark.py`  | Runs a passive buy-and-hold simulation (PAC-only, no signals, no strategy actions)          |
-| `equity_to_returns()` | `returns.py`    | Converts an iteration's equity curve to a daily return series for quantstats                |
-| `compute_twrr()`      | `twrr.py`       | Annualized Time-Weighted Rate of Return — strips out contribution timing effects            |
-| `compute_mwrr()`      | `twrr.py`       | Annualized Money-Weighted Rate of Return (IRR) — reflects actual investor experience        |
+| `MetricsCalculator` | `calculator.py` | Wraps quantstats.stats functions, computes per-iteration values, aggregates via percentiles |
+| `MetricResult` | `models.py` | Single metric's aggregated value: median, P5, P95, and per-iteration raw values |
+| `MetricSet` | `models.py` | All computed metrics for a single scenario (strategy or benchmark) |
+| `BacktestReport` | `models.py` | Complete report: strategy metrics, benchmark metrics (optional), config, iteration data |
+| `compute_report()` | `report.py` | Top-level orchestrator: strategy metrics → benchmark run → benchmark metrics → report |
+| `run_benchmark()` | `benchmark.py` | Runs a passive buy-and-hold simulation (PAC-only, no signals, no strategy actions) |
+| `equity_to_returns()` | `returns.py` | Converts an iteration's equity curve to a daily return series for quantstats |
+| `compute_twrr()` | `twrr.py` | Annualized Time-Weighted Rate of Return — strips out contribution timing effects |
+| `compute_mwrr()` | `twrr.py` | Annualized Money-Weighted Rate of Return (IRR) — reflects actual investor experience |
 
 ## Supported Metrics
 
 All metrics are computed via quantstats with annualized defaults (252 trading days):
 
-| Metric         | Description                                    |
+| Metric | Description |
 | -------------- | ---------------------------------------------- |
-| `sharpe`       | Sharpe ratio (annualized)                      |
-| `sortino`      | Sortino ratio (annualized, downside deviation) |
-| `calmar`       | Calmar ratio (CAGR / max drawdown)             |
-| `max_drawdown` | Maximum peak-to-trough drawdown                |
-| `cagr`         | Compound annual growth rate                    |
-| `volatility`   | Annualized volatility (standard deviation)     |
-| `twrr`         | Time-Weighted Rate of Return (annualized)      |
-| `mwrr`         | Money-Weighted Rate of Return / IRR (annualized) |
+| `sharpe` | Sharpe ratio (annualized) |
+| `sortino` | Sortino ratio (annualized, downside deviation) |
+| `calmar` | Calmar ratio (CAGR / max drawdown) |
+| `max_drawdown` | Maximum peak-to-trough drawdown |
+| `cagr` | Compound annual growth rate |
+| `volatility` | Annualized volatility (standard deviation) |
+| `twrr` | Time-Weighted Rate of Return (annualized) |
+| `mwrr` | Money-Weighted Rate of Return / IRR (annualized) |
 
 Metrics are selected via `BacktestConfig.metrics` — only requested metrics are computed.
 

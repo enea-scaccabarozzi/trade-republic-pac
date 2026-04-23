@@ -26,9 +26,9 @@ Four scripts systematically narrowed the search space before building any strate
 ### Scripts Used (in order of creation)
 
 1. [drift_characterization.py](exploration/drift_characterization.py) — analyze drift magnitudes, persistence, and regime behavior over 21 years
-2. [smoothing_assessment.py](exploration/smoothing_assessment.py) — compare spot vs SMA vs EMA drift: noise reduction vs lag tradeoff
-3. [contribution_capacity.py](exploration/contribution_capacity.py) — measure contribution rebalancing power as portfolio grows
-4. [theoretical_ceiling.py](exploration/theoretical_ceiling.py) — oracle strategy upper bound on improvement
+1. [smoothing_assessment.py](exploration/smoothing_assessment.py) — compare spot vs SMA vs EMA drift: noise reduction vs lag tradeoff
+1. [contribution_capacity.py](exploration/contribution_capacity.py) — measure contribution rebalancing power as portfolio grows
+1. [theoretical_ceiling.py](exploration/theoretical_ceiling.py) — oracle strategy upper bound on improvement
 
 ### Drift Characterization
 
@@ -37,6 +37,7 @@ Four scripts systematically narrowed the search space before building any strate
 **HOW**: Simulated the baseline DCA over 2005-01-03 to 2026-04-22, computed daily allocation percentages per asset, and analyzed drift (actual_pct - target_pct) distributions, autocorrelation, and per-regime behavior.
 
 **WHAT**: Drift is large and persistent:
+
 - Stocks: mean |drift| 7.1pp, max 30pp, 68% of days >5pp, 18% >10pp
 - Gold: mean |drift| 4.2pp, max 18pp, 76% of days >2pp
 - Bonds: mean |drift| 4.1pp, max 15pp, 76% of days >2pp
@@ -62,11 +63,12 @@ Four scripts systematically narrowed the search space before building any strate
 **HOW**: Simulated the baseline DCA and measured contribution/portfolio ratio over time.
 
 **WHAT**: The contribution capacity decays rapidly:
+
 - 2005: ~30% of portfolio (front-loaded, very effective)
 - 2006: ~5.5%
-- 2009: <2pp/month (crossed below 2pp on 2009-08-07)
-- 2011: <1pp/month
-- 2015: <0.5pp/month
+- 2009: \<2pp/month (crossed below 2pp on 2009-08-07)
+- 2011: \<1pp/month
+- 2015: \<0.5pp/month
 
 **SO WHAT**: Contribution steering is overwhelmingly front-loaded. After the first ~5 years, the monthly contribution is too small relative to the portfolio to materially correct drift. Any improvement from steering will come almost entirely from the early years of the investment period. This fundamentally limits the ceiling for this approach.
 
@@ -119,6 +121,7 @@ The core algorithm: compute per-asset drift from the DeviationReport, determine 
 ### Quick Test (Default Params)
 
 DriftDCA with default params (proportional, tilt=0.5, threshold=3.0) vs baseline:
+
 - TWRR delta: +0.05pp
 - Sharpe delta: +0.0016
 - MaxDD delta: -0.04pp (negligible)
@@ -149,23 +152,23 @@ Swept 54 configurations: 3 formulas × 6 tilt values × 4 threshold values (prop
 
 1. **Every TWRR-improving configuration reduces final portfolio value.** This is the fundamental tension: steering contributions away from stocks (the highest-return asset) improves TWRR (risk-adjusted) but reduces terminal wealth. There is no free lunch.
 
-2. **Stepped formula dominates TWRR improvement** but at severe drawdown cost. The best stepped configs reach the oracle ceiling (~0.5pp) but with -12.9pp worse max drawdown and -€16k to -€38k less wealth.
+1. **Stepped formula dominates TWRR improvement** but at severe drawdown cost. The best stepped configs reach the oracle ceiling (~0.5pp) but with -12.9pp worse max drawdown and -€16k to -€38k less wealth.
 
-3. **Proportional formula is the safest** — consistent small gains with minimal side effects. At tilt=0.5: +0.05pp TWRR, +0.0016 Sharpe, only -€1,408 and no meaningful drawdown change.
+1. **Proportional formula is the safest** — consistent small gains with minimal side effects. At tilt=0.5: +0.05pp TWRR, +0.0016 Sharpe, only -€1,408 and no meaningful drawdown change.
 
-4. **Higher tilt always costs more in final value.** The relationship is monotonic: more aggressive steering = more money diverted from stocks = lower terminal wealth.
+1. **Higher tilt always costs more in final value.** The relationship is monotonic: more aggressive steering = more money diverted from stocks = lower terminal wealth.
 
-5. **Threshold parameter matters for stepped formula** — low thresholds (2.0) allow the stepped formula to fire more often, capturing more drift correction. High thresholds (8.0) make it fire rarely, and the discrete jumps cause erratic behavior (several bottom-ranked configs are stepped with high thresholds).
+1. **Threshold parameter matters for stepped formula** — low thresholds (2.0) allow the stepped formula to fire more often, capturing more drift correction. High thresholds (8.0) make it fire rarely, and the discrete jumps cause erratic behavior (several bottom-ranked configs are stepped with high thresholds).
 
-6. **Sharpe improvement is more consistent** across configurations. Even configs that lose on TWRR often gain on Sharpe, suggesting the risk reduction is real even when return improvement is negligible.
+1. **Sharpe improvement is more consistent** across configurations. Even configs that lose on TWRR often gain on Sharpe, suggesting the risk reduction is real even when return improvement is negligible.
 
 ### Candidate Selection for Validation
 
 Given the fundamental tension between TWRR/Sharpe and final value, three candidates represent the Pareto frontier:
 
 1. **Conservative**: proportional, tilt=0.3 — +0.03pp TWRR, -€975 final value, nearly unchanged risk
-2. **Moderate**: proportional, tilt=1.0 — +0.11pp TWRR, -€2,251 final value, +0.4pp better drawdown
-3. **Aggressive**: stepped, tilt=0.5, thresh=2.0 — +0.14pp TWRR, -€8,394 final value, +4.7pp better drawdown
+1. **Moderate**: proportional, tilt=1.0 — +0.11pp TWRR, -€2,251 final value, +0.4pp better drawdown
+1. **Aggressive**: stepped, tilt=0.5, thresh=2.0 — +0.14pp TWRR, -€8,394 final value, +4.7pp better drawdown
 
 ### Phase Deliverables
 
@@ -235,10 +238,11 @@ Confidence intervals are tight (P5–P95 spread ~1–2% of median), confirming t
 **WHY**: A single IS/OOS split is sensitive to the split date. Walk-forward uses multiple overlapping windows to test stability across different market regimes.
 
 **HOW**: Three windows with 10-year IS and expanding OOS:
+
 - W1: IS 2005–2015, OOS 2015–2020
 - W2: IS 2005–2020, OOS 2020–2025
 - W3: IS 2005–2025, OOS 2025–2026
-Stability score = sum of OOS Sharpe across windows. Higher = more consistent.
+  Stability score = sum of OOS Sharpe across windows. Higher = more consistent.
 
 **WHAT**:
 
@@ -307,13 +311,13 @@ Steering contributions toward underweight assets means steering them *away* from
 
 ### Why It Doesn't Work Well Enough
 
-1. **Contribution capacity decays rapidly.** Monthly contributions of €500–700 are meaningful only in the first ~5 years. After 2009, contributions are <2% of portfolio value — too small to meaningfully correct drift. The strategy is structurally front-loaded.
+1. **Contribution capacity decays rapidly.** Monthly contributions of €500–700 are meaningful only in the first ~5 years. After 2009, contributions are \<2% of portfolio value — too small to meaningfully correct drift. The strategy is structurally front-loaded.
 
-2. **The improvements are within noise.** A +0.04pp TWRR improvement (conservative) is indistinguishable from random variation. Even the aggressive candidate's +0.19pp is barely above the MC confidence interval width.
+1. **The improvements are within noise.** A +0.04pp TWRR improvement (conservative) is indistinguishable from random variation. Even the aggressive candidate's +0.19pp is barely above the MC confidence interval width.
 
-3. **The best metric improvement (max drawdown) requires the worst formula.** The aggressive candidate's +4.9pp max drawdown improvement is the most compelling result, but it uses the stepped formula which applies discrete 0/50%/100% jumps — a crude mechanism that happens to help in the 2022 bear market but could equally hurt in other scenarios.
+1. **The best metric improvement (max drawdown) requires the worst formula.** The aggressive candidate's +4.9pp max drawdown improvement is the most compelling result, but it uses the stepped formula which applies discrete 0/50%/100% jumps — a crude mechanism that happens to help in the 2022 bear market but could equally hurt in other scenarios.
 
-4. **The theoretical ceiling was ~+0.35pp TWRR.** The oracle strategy (perfect information) could only improve TWRR by 0.35pp while losing €23k in final value. Real strategies achieve less than half of this ceiling while already paying a proportional wealth cost.
+1. **The theoretical ceiling was ~+0.35pp TWRR.** The oracle strategy (perfect information) could only improve TWRR by 0.35pp while losing €23k in final value. Real strategies achieve less than half of this ceiling while already paying a proportional wealth cost.
 
 ### What This Experiment Proves
 

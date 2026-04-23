@@ -8,7 +8,7 @@ Research follows a natural trial-and-error process that moves through three regi
 
 The experiment folder accumulates everything: false starts, reworked approaches, multiple strategy versions. The value is in the trail, not just the final answer.
 
-```
+```text
   ┌─────────────┐      ┌────────────────┐      ┌──────────────┐
   │ EXPLORATION  │◄────►│ CONSOLIDATION  │◄────►│  VALIDATION  │
   │              │      │                │      │              │
@@ -26,6 +26,7 @@ The question: **"Is there signal here?"**
 Pure data science with no framework constraints. Fetch prices from yfinance, compute indicators with tulipy or pandas, plot distributions, run statistical tests, look for patterns. Marimo notebooks are the natural medium — interactive, visual, iterative.
 
 Typical activities:
+
 - Fetch and inspect price data with `yfinance` and `pandas`
 - Compute technical indicators (`tulipy`, custom functions)
 - Statistical analysis (correlations, regime detection, distribution fitting)
@@ -41,6 +42,7 @@ The question: **"Can this idea work inside the simulator?"**
 Translate exploration insights into framework terms. Write a `SignalRule`, a `BacktestStrategy`, or adjust parameters of an existing one. Wire it through `ResearchContext.simulate()` to confirm the idea works in the backtester's world — same engine, same portfolio model, same contribution schedule, same tax regime.
 
 Typical activities:
+
 - Write new `SignalRule` or `BacktestStrategy` subclass(es) inside the experiment folder
 - Run quick deterministic simulations (`ctx.simulate()`, N=1, no slippage)
 - Compare variants (`ctx.compare()`) to see if the idea outperforms the baseline
@@ -56,6 +58,7 @@ The question: **"Does this hold up under real-world conditions?"**
 The strategy implementation is mature enough to stress-test. Apply the full validation toolkit to gather evidence for a go/no-go decision. The researcher may still iterate (adjusting params, going back to consolidation), but the focus is on building confidence, not exploring.
 
 Typical activities:
+
 - Full Monte Carlo runs (`ctx.simulate_mc()`, N=50+, with slippage)
 - Out-of-sample holdout (`ctx.validate_oos()`)
 - Walk-forward analysis (`ctx.walk_forward()`)
@@ -70,7 +73,7 @@ The output is **evidence**: enough quantitative data to make a decision, fully d
 
 Each experiment is a self-contained directory under `research/experiments/`:
 
-```
+```text
 research/experiments/003-dd-threshold-sweep/
 ├── experiment.toml            # Seed metadata: hypothesis, tags, references
 ├── exploration/               # Phase 1: data exploration scripts & notebooks
@@ -121,6 +124,7 @@ Not every experiment needs every directory. A pure exploration experiment might 
 All research phases use **Marimo notebooks** (`.py` format) as the primary interface. Marimo notebooks are interactive, reproducible, and version-control friendly. They are easier to run than scripts and provide immediate visual feedback.
 
 Scripts and notebooks are organized into phase folders:
+
 - `exploration/explore.py` — initial data exploration, indicator analysis, visual inspection
 - `consolidation/consolidate.py` — strategy development, quick simulations, variant comparison
 - `validation/validate.py` — full validation runs, MC simulations, OOS analysis, tearsheets
@@ -283,7 +287,7 @@ tags = ["crisis", "sensitivity", "params"]
 When `status` is not manually set in the toml:
 
 1. `results/` contains `.json` or `.csv` files → `"validated"`
-2. Default → `"exploring"`
+1. Default → `"exploring"`
 
 To force a status (e.g., `"rejected"`, `"superseded"`), set it explicitly in the toml.
 
@@ -292,13 +296,17 @@ To force a status (e.g., `"rejected"`, `"superseded"`), set it explicitly in the
 Experiments can reference results from prior experiments. Keep it simple:
 
 - **In FINDINGS.md**: Link to the other experiment's findings or results by relative path:
+
   ```markdown
   Baseline established in [001-baseline-pac](../001-baseline-pac/FINDINGS.md).
   ```
+
 - **In experiment.toml**: Use the `depends_on` field to declare the relationship:
+
   ```toml
   depends_on = ["001-baseline-pac"]
   ```
+
 - **In code**: Load results from another experiment's `results/` directory by path. Experiments should not import Python code from each other.
 
 ## Available Tools by Phase

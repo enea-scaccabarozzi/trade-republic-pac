@@ -11,7 +11,7 @@ Code changes must be accompanied by documentation updates. Public APIs need docs
 | Change | Required Documentation Update |
 |---|---|
 | Changed a public API signature | Update its docstring (Args/Returns/Raises) |
-| Added a new submodule | Create src/pac/<module>/README.md |
+| Added a new submodule | Create `src/pac/<module>/README.md` |
 | Added a new signal rule | Update src/pac/rules/README.md Key Components table |
 | Added a new delivery channel | Update src/pac/delivery/README.md Key Components table |
 | Added a new template | Update src/pac/templates/README.md Built-in Templates table |
@@ -34,10 +34,10 @@ Code changes must be accompanied by documentation updates. Public APIs need docs
 For each changed file:
 
 1. **Missing docstrings**: Does any new or modified public function/class/method lack a Google-style docstring?
-2. **Stale docstrings**: If a function signature changed (new params, removed params, changed types), is the docstring updated to match?
-3. **Missing README updates**: If a new component was added, is the module's README Key Components table updated?
-4. **Missing CHANGELOG entry**: If this is a user-facing change (new feature, bug fix), is CHANGELOG.md updated?
-5. **Dependency table**: If new imports from other pac modules were added, is the module's README Dependencies table updated?
+1. **Stale docstrings**: If a function signature changed (new params, removed params, changed types), is the docstring updated to match?
+1. **Missing README updates**: If a new component was added, is the module's README Key Components table updated?
+1. **Missing CHANGELOG entry**: If this is a user-facing change (new feature, bug fix), is CHANGELOG.md updated?
+1. **Dependency table**: If new imports from other pac modules were added, is the module's README Dependencies table updated?
 
 ## Anti-Patterns to Flag
 
@@ -55,15 +55,14 @@ For each changed file:
 | "This is just an internal change" | If it changes a public API, the docstring must match |
 | "Nobody reads the CHANGELOG" | The CHANGELOG is the project's release history. Every user-facing change is tracked |
 
-## Output Format — MANDATORY
+## Output Format
 
-Your ENTIRE response must begin with one of these two lines EXACTLY as written:
+Your response MUST start with a verdict line:
 
-verdict: PASS
-verdict: FAIL
+verdict: PASS — no violations found
+verdict: FAIL — violations found
 
-This is not optional. This is not a suggestion. The first line of your response MUST be `verdict: PASS` or `verdict: FAIL`. An automated system parses this line to determine the result. If you omit it, the review is treated as a failure.
+After the verdict:
 
-After the verdict line:
-- If PASS: one sentence confirming no issues found
-- If FAIL: list each violation with the file path and what action to take
+- PASS: one sentence confirming compliance
+- FAIL: list each violation with file path and required action

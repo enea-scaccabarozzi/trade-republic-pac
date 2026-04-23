@@ -4,11 +4,11 @@ Market data access layer for the backtester. Fetches historical OHLCV prices via
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                 |
+| Aspect | Details |
 | ----------- | --------------------------------------------------------------------------------------- |
-| Depends on  | [`config`](../../config/) (`Settings`, `AssetConfig.ticker`), `yfinance` (optional dep) |
-| Consumed by | Backtester simulation engine (Phase 2)                                                  |
-| Boundary    | HTTP fetch (yfinance), filesystem cache read/write, Pydantic OHLCV models               |
+| Depends on | [`config`](../../config/) (`Settings`, `AssetConfig.ticker`), `yfinance` (optional dep) |
+| Consumed by | Backtester simulation engine (Phase 2) |
+| Boundary | HTTP fetch (yfinance), filesystem cache read/write, Pydantic OHLCV models |
 
 ## Dependencies
 
@@ -22,22 +22,22 @@ Note: `backtester/data` defines `PriceSeries` and `PriceBar` in `data/models.py`
 
 ## Key Components
 
-| Component            | File          | Description                                                              |
+| Component | File | Description |
 | -------------------- | ------------- | ------------------------------------------------------------------------ |
-| `PriceBar`           | `models.py`   | Single OHLCV bar (frozen Pydantic model, validates `low <= high`)        |
-| `PriceSeries`        | `models.py`   | Ordered list of `PriceBar` for one ticker, with `slice()` helper         |
-| `Interval`           | `models.py`   | `StrEnum` of supported bar intervals (`1d`, `1wk`, `1mo`)                |
-| `DataRequest`        | `models.py`   | Request params: ticker, start/end dates, interval (validates date range) |
-| `MarketDataProvider` | `provider.py` | Fetches data via yfinance with transparent filesystem JSON caching       |
-| `resolve_tickers()`  | `provider.py` | Builds `asset_id → ticker` mapping from `Settings`, errors on missing    |
+| `PriceBar` | `models.py` | Single OHLCV bar (frozen Pydantic model, validates `low <= high`) |
+| `PriceSeries` | `models.py` | Ordered list of `PriceBar` for one ticker, with `slice()` helper |
+| `Interval` | `models.py` | `StrEnum` of supported bar intervals (`1d`, `1wk`, `1mo`) |
+| `DataRequest` | `models.py` | Request params: ticker, start/end dates, interval (validates date range) |
+| `MarketDataProvider` | `provider.py` | Fetches data via yfinance with transparent filesystem JSON caching |
+| `resolve_tickers()` | `provider.py` | Builds `asset_id → ticker` mapping from `Settings`, errors on missing |
 
 ## Configuration
 
 `MarketDataProvider` accepts two optional constructor arguments:
 
-| Parameter   | Default            | Description                                |
+| Parameter | Default | Description |
 | ----------- | ------------------ | ------------------------------------------ |
-| `cache_dir` | `~/.pac/cache/`    | Directory for cached JSON files            |
+| `cache_dir` | `~/.pac/cache/` | Directory for cached JSON files |
 | `cache_ttl` | `86400` (24 hours) | Seconds before a cached entry is refetched |
 
 Assets must have a `ticker` field in `pac.yaml` to be used with the backtester:

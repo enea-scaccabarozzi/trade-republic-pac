@@ -4,11 +4,11 @@ Frontend-agnostic JSON sidecar for backtest results. Converts a `BacktestReport`
 
 ## Public API
 
-| Symbol               | Description                                                 |
+| Symbol | Description |
 | -------------------- | ----------------------------------------------------------- |
-| `RunResult`          | Pydantic model — the JSON schema for a saved backtest run   |
+| `RunResult` | Pydantic model — the JSON schema for a saved backtest run |
 | `build_run_result()` | Converts `BacktestReport` → `RunResult` with MC aggregation |
-| `ResultStore`        | Save/load/list/delete JSON files in `.pac/backtests/`       |
+| `ResultStore` | Save/load/list/delete JSON files in `.pac/backtests/` |
 
 ## Dependencies
 
@@ -52,11 +52,11 @@ Frontend-agnostic JSON sidecar for backtest results. Converts a `BacktestReport`
 ## Aggregation Logic
 
 1. **Median iteration**: iteration whose `final_value` is closest to the overall median
-2. **Equity curve**: P5/median/P95 of `total_value` at each date across all iterations
-3. **Allocations**: P5/median/P95 per asset (+ cash pseudo-asset) at each date
-4. **Trades**: extracted from the median iteration (Decimal → float conversion)
-5. **Summary**: `total_invested = initial_cash + contribution_per_pac × actual_pac_count`
-6. **Benchmark metrics**: `p5 = p95 = median` (deterministic, uniform shape)
+1. **Equity curve**: P5/median/P95 of `total_value` at each date across all iterations
+1. **Allocations**: P5/median/P95 per asset (+ cash pseudo-asset) at each date
+1. **Trades**: extracted from the median iteration (Decimal → float conversion)
+1. **Summary**: `total_invested = initial_cash + contribution_per_pac × actual_pac_count`
+1. **Benchmark metrics**: `p5 = p95 = median` (deterministic, uniform shape)
 
 ## Usage
 

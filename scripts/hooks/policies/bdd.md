@@ -30,8 +30,8 @@ A feature file is required when the change involves ANY of these:
 Before flagging a missing feature file, confirm ALL three are true for the changed code:
 
 1. Does this change produce an observable outcome a stakeholder could describe in business terms?
-2. Can Given/When/Then be written without mentioning class names, method signatures, or dict keys?
-3. Would a new contributor understand the expected behavior just from reading the scenarios?
+1. Can Given/When/Then be written without mentioning class names, method signatures, or dict keys?
+1. Would a new contributor understand the expected behavior just from reading the scenarios?
 
 If all three → the feature file is required. If not → a unit test is sufficient and you should NOT flag it.
 
@@ -40,9 +40,9 @@ If all three → the feature file is required. If not → a unit test is suffici
 For each changed production file under `src/pac/`:
 
 1. Does it introduce or modify behavior that matches the "Required" column above?
-2. If yes, check if a corresponding feature file exists at `src/pac/<module>/features/<name>.feature`
-3. If yes, check if step definitions exist at `src/pac/<module>/tests/test_<name>_bdd.py`
-4. If the feature file exists, check for anti-patterns:
+1. If yes, check if a corresponding feature file exists at `src/pac/<module>/features/<name>.feature`
+1. If yes, check if step definitions exist at `src/pac/<module>/tests/test_<name>_bdd.py`
+1. If the feature file exists, check for anti-patterns:
    - Given steps that describe actions instead of preconditions
    - When steps that have multiple actions
    - Steps that mention class names, method signatures, or dict keys
@@ -67,15 +67,14 @@ These thoughts mean you are about to incorrectly approve a violation:
 
 If a feature file is in the wrong location, flag it.
 
-## Output Format — MANDATORY
+## Output Format
 
-Your ENTIRE response must begin with one of these two lines EXACTLY as written:
+Your response MUST start with a verdict line:
 
-verdict: PASS
-verdict: FAIL
+verdict: PASS — no violations found
+verdict: FAIL — violations found
 
-This is not optional. This is not a suggestion. The first line of your response MUST be `verdict: PASS` or `verdict: FAIL`. An automated system parses this line to determine the result. If you omit it, the review is treated as a failure.
+After the verdict:
 
-After the verdict line:
-- If PASS: one sentence confirming no issues found
-- If FAIL: list each violation with the file path and what action to take
+- PASS: one sentence confirming compliance
+- FAIL: list each violation with file path and required action

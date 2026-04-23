@@ -4,11 +4,11 @@ Channel abstraction and message routing. Defines the `DeliveryChannel` base clas
 
 ## Architectural Role
 
-| Aspect      | Details                                                                                                                               |
+| Aspect | Details |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Depends on  | [`models`](../models/) (`SignalSeverity`, `PortfolioSnapshot`), [`analysis`](../analysis/) (deviation and PAC plan data), [`tr`](../tr/) (Telegram error handling) |
-| Consumed by | [`orchestrator`](../orchestrator/) (wires channels, calls `send()`), [`templates`](../templates/) (produces `RenderedMessage`)        |
-| Boundary    | Channel abstraction, message delivery, channel-specific interactive features                                                          |
+| Depends on | [`models`](../models/) (`SignalSeverity`, `PortfolioSnapshot`), [`analysis`](../analysis/) (deviation and PAC plan data), [`tr`](../tr/) (Telegram error handling) |
+| Consumed by | [`orchestrator`](../orchestrator/) (wires channels, calls `send()`), [`templates`](../templates/) (produces `RenderedMessage`) |
+| Boundary | Channel abstraction, message delivery, channel-specific interactive features |
 
 ## Dependencies
 
@@ -22,15 +22,15 @@ Channel abstraction and message routing. Defines the `DeliveryChannel` base clas
 
 ## Key Components
 
-| Component                  | File                              | Description                                                   |
+| Component | File | Description |
 | -------------------------- | --------------------------------- | ------------------------------------------------------------- |
-| `DeliveryChannel[ConfigT]` | `base.py`                         | ABC + Generic base class; `__init_subclass__` extracts config |
-| `RenderedMessage`          | `base.py`                         | Channel-agnostic output model (`content`, `format`, severity) |
-| `discover_channels()`      | `discovery.py`                    | Scans `channels/` subpackages for concrete implementations    |
-| `TelegramChannel`          | `channels/telegram/channel.py`    | PTB-based message delivery with lifecycle hooks               |
-| `create_bot_from_app`      | `channels/telegram/bot.py`        | PTB `Application` factory with interactive command handlers   |
-| Formatting functions       | `channels/telegram/formatting.py` | MarkdownV2 formatters for portfolio, signals, and PAC plan    |
-| Keyboard builders          | `channels/telegram/keyboards.py`  | Telegram inline keyboard builders                             |
+| `DeliveryChannel[ConfigT]` | `base.py` | ABC + Generic base class; `__init_subclass__` extracts config |
+| `RenderedMessage` | `base.py` | Channel-agnostic output model (`content`, `format`, severity) |
+| `discover_channels()` | `discovery.py` | Scans `channels/` subpackages for concrete implementations |
+| `TelegramChannel` | `channels/telegram/channel.py` | PTB-based message delivery with lifecycle hooks |
+| `create_bot_from_app` | `channels/telegram/bot.py` | PTB `Application` factory with interactive command handlers |
+| Formatting functions | `channels/telegram/formatting.py` | MarkdownV2 formatters for portfolio, signals, and PAC plan |
+| Keyboard builders | `channels/telegram/keyboards.py` | Telegram inline keyboard builders |
 
 ## Configuration
 

@@ -4,16 +4,16 @@ This guide defines where documentation lives, what format it follows, and how to
 
 ## Framework: Diátaxis in This Repo
 
-| Mode        | Where in Repo                                                | Examples                                         |
+| Mode | Where in Repo | Examples |
 | ----------- | ------------------------------------------------------------ | ------------------------------------------------ |
-| Tutorial    | `CONTRIBUTING.md` "Getting Started" + "Extending the System" | Setup walkthrough, adding a first rule           |
-| How-to      | `docs/*.md` guides, `CONTRIBUTING.md` sections               | "Adding a Signal Rule", "Writing a BDD Feature"  |
-| Reference   | Submodule READMEs, docstrings, `pac.yaml.example`            | API tables, config schema, component tables      |
-| Explanation | ADRs in `docs/architecture/`, `AGENTS.md` "Key Decisions"    | Why ABC+Generic over Protocol, serverless design |
+| Tutorial | `CONTRIBUTING.md` "Getting Started" + "Extending the System" | Setup walkthrough, adding a first rule |
+| How-to | `docs/*.md` guides, `CONTRIBUTING.md` sections | "Adding a Signal Rule", "Writing a BDD Feature" |
+| Reference | Submodule READMEs, docstrings, `pac.yaml.example` | API tables, config schema, component tables |
+| Explanation | ADRs in `docs/architecture/`, `AGENTS.md` "Key Decisions" | Why ABC+Generic over Protocol, serverless design |
 
 ## Documentation Hierarchy
 
-```
+```text
 Code comments → Docstrings → Submodule READMEs → docs/ guides → Root README
 ```
 
@@ -64,6 +64,7 @@ Consumed by: [`orchestrator`](../orchestrator/README.md).
 - **Sections:** brief description, Args, Returns, Raises (only include sections that add information)
 
 Example from this codebase:
+
 ```python
 def calculate_deviations(
     snapshot: PortfolioSnapshot,
@@ -91,39 +92,39 @@ def calculate_deviations(
 
 ## When Code Changes, What Docs Update?
 
-| I just...                      | Update                                                        |
+| I just... | Update |
 | ------------------------------ | ------------------------------------------------------------- |
-| Changed a public API signature | Update its docstring (Args/Returns/Raises)                    |
-| Added a new submodule          | Create `src/pac/<module>/README.md` from the template above   |
-| Added a new signal rule        | Update `src/pac/rules/README.md` Key Components table         |
-| Added a new delivery channel   | Update `src/pac/delivery/README.md` Key Components table      |
-| Added a new template           | Update `src/pac/templates/README.md` Built-in Templates table |
-| Changed config schema          | Update relevant module README "Configuration" section         |
-| Added a new feature            | Update `CHANGELOG.md` [Unreleased] section                    |
-| Changed contributing workflow  | Update `CONTRIBUTING.md`                                      |
-| Made an architecture decision  | Write an ADR in `docs/architecture/`                          |
-| Added a BDD feature file       | No doc update needed (feature files are self-documenting)     |
-| Fixed a bug                    | Update `CHANGELOG.md` [Unreleased] section                    |
+| Changed a public API signature | Update its docstring (Args/Returns/Raises) |
+| Added a new submodule | Create `src/pac/<module>/README.md` from the template above |
+| Added a new signal rule | Update `src/pac/rules/README.md` Key Components table |
+| Added a new delivery channel | Update `src/pac/delivery/README.md` Key Components table |
+| Added a new template | Update `src/pac/templates/README.md` Built-in Templates table |
+| Changed config schema | Update relevant module README "Configuration" section |
+| Added a new feature | Update `CHANGELOG.md` [Unreleased] section |
+| Changed contributing workflow | Update `CONTRIBUTING.md` |
+| Made an architecture decision | Write an ADR in `docs/architecture/` |
+| Added a BDD feature file | No doc update needed (feature files are self-documenting) |
+| Fixed a bug | Update `CHANGELOG.md` [Unreleased] section |
 
 ## File Ownership Map
 
-| File                           | Owns Documentation For                            | NOT In                       |
+| File | Owns Documentation For | NOT In |
 | ------------------------------ | ------------------------------------------------- | ---------------------------- |
-| `README.md`                    | Project overview, quick start, deployment         | Implementation details       |
-| `CONTRIBUTING.md`              | Dev setup, workflow, commit conventions           | Architecture decisions       |
-| `AGENTS.md`                    | AI agent context, key decisions, learned patterns | User-facing docs             |
-| `CHANGELOG.md`                 | Release history, unreleased changes               | —                            |
-| `SECURITY.md`                  | Vulnerability reporting                           | —                            |
-| `CODE_OF_CONDUCT.md`           | Community standards                               | —                            |
-| `docs/bdd.md`                  | BDD conventions, feature file guide               | Testing philosophy           |
-| `docs/testing.md`              | Testing approach, DI patterns, mocking            | BDD-specific conventions     |
-| `docs/documentation.md`        | Doc standards, README template, docstring style   | Code conventions             |
-| `docs/architecture/ADR-*.md`   | Architecture decisions with rationale             | How-to instructions          |
-| `pac.yaml.example`             | Config schema reference (by example)              | Explanatory prose            |
-| `src/pac/<module>/README.md`   | Module purpose, components, usage, commands       | Root-level project info      |
+| `README.md` | Project overview, quick start, deployment | Implementation details |
+| `CONTRIBUTING.md` | Dev setup, workflow, commit conventions | Architecture decisions |
+| `AGENTS.md` | AI agent context, key decisions, learned patterns | User-facing docs |
+| `CHANGELOG.md` | Release history, unreleased changes | — |
+| `SECURITY.md` | Vulnerability reporting | — |
+| `CODE_OF_CONDUCT.md` | Community standards | — |
+| `docs/bdd.md` | BDD conventions, feature file guide | Testing philosophy |
+| `docs/testing.md` | Testing approach, DI patterns, mocking | BDD-specific conventions |
+| `docs/documentation.md` | Doc standards, README template, docstring style | Code conventions |
+| `docs/architecture/ADR-*.md` | Architecture decisions with rationale | How-to instructions |
+| `pac.yaml.example` | Config schema reference (by example) | Explanatory prose |
+| `src/pac/<module>/README.md` | Module purpose, components, usage, commands | Root-level project info |
 | `src/pac/backtester/<submodule>/README.md` | Backtester submodule purpose, components, dependency table | Root-level project info |
-| Docstrings (in `.py` files)    | API contract: args, returns, raises, brief why    | Implementation walk-throughs |
-| Code comments (in `.py` files) | "Why" for non-obvious implementation choices      | API documentation            |
+| Docstrings (in `.py` files) | API contract: args, returns, raises, brief why | Implementation walk-throughs |
+| Code comments (in `.py` files) | "Why" for non-obvious implementation choices | API documentation |
 
 ## Anti-Patterns
 
