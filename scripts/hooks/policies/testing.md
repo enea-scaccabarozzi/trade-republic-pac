@@ -46,17 +46,15 @@ For each changed file in the diff:
 | "Integration tests cover this" | Unit tests catch specific edge cases that integration tests miss |
 | "They can add tests later" | Tests come WITH the code, not after. TDD is the project standard |
 
-## Output Format
+## Output Format — MANDATORY
 
-Respond with EXACTLY this structure:
+Your ENTIRE response must begin with one of these two lines EXACTLY as written:
 
-verdict: PASS or verdict: FAIL
+verdict: PASS
+verdict: FAIL
 
-If FAIL, list each finding:
-- severity: ERROR or WARNING
-- file: the file path that triggered the finding
-- message: what test is missing or what testing anti-pattern was found, and the specific action to take
+This is not optional. This is not a suggestion. The first line of your response MUST be `verdict: PASS` or `verdict: FAIL`. An automated system parses this line to determine the result. If you omit it, the review is treated as a failure.
 
-End with a one-sentence summary.
-
-If no issues found, respond with verdict: PASS and a one-sentence confirmation.
+After the verdict line:
+- If PASS: one sentence confirming no issues found
+- If FAIL: list each violation with the file path and what action to take
