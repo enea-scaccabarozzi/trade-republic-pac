@@ -49,3 +49,19 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+
+      - id: llm-review-commit
+        name: LLM semantic review (commit)
+        entry: scripts/hooks/review.sh --mode commit
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: llm-review-push
+        name: LLM semantic review (push)
+        entry: scripts/hooks/review.sh --mode push
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
